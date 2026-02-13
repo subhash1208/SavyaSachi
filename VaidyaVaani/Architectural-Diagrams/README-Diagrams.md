@@ -11,13 +11,26 @@ This is the full architecture showing all components:
 - **Speech Processing**: Amazon Transcribe (STT) and Amazon Polly (TTS)
 - **AI Brain**: Amazon Bedrock (Claude 3.5 Sonnet) + Knowledge Base (WHO/ICMR)
 - **Agentic Orchestration**: AWS Step Functions + EventBridge
-- **Agentic Actions**: Emergency dispatch (108/112), SMS alerts, eSanjeevani integration
+- **Agentic Actions**: 
+  - Emergency dispatch (108/112)
+  - SMS alerts to family
+  - eSanjeevani integration
+  - Disease Surveillance Agent (outbreak detection)
+  - ASHA Worker alerts
+  - Chronic Care follow-up scheduling
+  - WhatsApp photo analysis (Claude Vision)
 - **Storage & Analytics**: S3, CloudWatch, QuickSight
-- **External Integrations**: Ambulance services, hospitals, eSanjeevani
+- **External Integrations**: Ambulance services, hospitals, eSanjeevani, ASHA workers
 
 **Use this for**: Technical deep-dive presentations, architecture reviews, hackathon technical section
 
 **Cost**: ₹67 per call (original architecture)
+
+**New Features Highlighted**:
+- Disease Surveillance: Real-time outbreak detection from call patterns
+- ASHA Integration: Frontline health worker alerts for critical cases
+- Chronic Care: Automated weekly check-ins for diabetes, BP, TB patients
+- Multimodal: WhatsApp photo path for visual diagnosis
 
 ---
 
@@ -30,10 +43,23 @@ This shows the simplified architecture using Amazon Nova Sonic:
 - **Simplified Flow**: Users → Connect+Nova → Actions → Response
 - **Lower Latency**: Single model call instead of chaining 3 services
 - **Same Capabilities**: STT + AI Reasoning + TTS all in one
+- **Emotion Detection**: Nova Sonic detects voice tone (panic, confusion, calm) for intelligent routing
+- **Enhanced Agentic Actions**:
+  - Disease Surveillance Agent (outbreak detection)
+  - ASHA Worker Integration (frontline alerts)
+  - Chronic Care Companion (weekly check-ins)
+  - Emergency SOS Mode (one-word activation)
+  - WhatsApp Photo Path (multimodal AI)
 
 **Use this for**: Cost optimization discussions, hackathon pitch (shows innovation), production architecture
 
 **Cost**: ₹42 per call (37% cheaper than original)
+
+**Gap-Filling Features**:
+- Public Health Intelligence: Individual calls → outbreak detection → government alerts
+- Frontline Integration: ASHA worker alerts for critical cases
+- Long-term Care: Chronic disease follow-up with 7-36x ROI
+- Zero Barrier Access: Missed call entry point for users with no balance
 
 ---
 
@@ -99,10 +125,17 @@ Visual comparison of cost structures:
 ✅ **Break-even at just 161 calls/day**
 
 ### Innovation Highlights:
-✅ **Nova Sonic**: First to use Amazon's new speech-to-speech model
+✅ **Nova Sonic**: First to use Amazon's new speech-to-speech model with emotion detection
 ✅ **Feature phone support**: Only solution for 350M users
-✅ **Agentic AI**: Not just advice, takes actions
-✅ **10+ Indian languages**: Native support, not translation
+✅ **Agentic AI**: Not just advice, takes autonomous actions
+✅ **Disease Surveillance**: Outbreak detection from call patterns (public health intelligence)
+✅ **ASHA Integration**: Alerts 10 lakh+ frontline health workers
+✅ **Chronic Care**: 7-36x ROI preventing costly hospitalizations
+✅ **Multimodal**: Voice + Vision (WhatsApp photo analysis)
+✅ **Emergency SOS**: One-word activation for critical situations
+✅ **Missed Call Entry**: Zero cost access for users with no balance
+✅ **10+ Indian languages**: Hindi + English native, regional via fallback
+✅ **Nandan Nilekani Validation**: "Voice AI is India's next UPI moment"
 
 ---
 
@@ -137,18 +170,27 @@ These diagrams were generated using the AWS Diagrams MCP tool with the Python `d
 - "What AWS services are you using?"
 - "How do you handle emergencies?"
 - "Where is data stored?"
+- "How does disease surveillance work?"
+- "How do you integrate with ASHA workers?"
+- "How does chronic care follow-up work?"
+- "How do you handle photo analysis?"
 
 **VaidyaVaani-Nova-Sonic-Architecture.png answers**:
 - "How did you optimize costs?"
 - "What's different from the original architecture?"
 - "Why is Nova Sonic better?"
 - "What's the production architecture?"
+- "How does emotion detection work?"
+- "What makes this truly agentic?"
+- "How do you detect disease outbreaks?"
 
 **VaidyaVaani-Cost-Comparison.png answers**:
 - "Why is this cheaper than NHS 111?"
 - "Where does the cost savings come from?"
 - "What's the cost breakdown?"
 - "How much does each component cost?"
+- "What's the ROI for government?"
+- "How does chronic care follow-up pay for itself?"
 
 ---
 
