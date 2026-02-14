@@ -9,6 +9,8 @@
 
 ## Table of Contents
 
+### Data Sources (Verified & Government-Approved)
+
 1. [Why This Matters](#1-why-this-matters)
 2. [Source 1: ICMR Standard Treatment Workflows (PRIMARY)](#2-source-1-icmr-standard-treatment-workflows-stws--your-primary-source)
 3. [Source 2: WHO IMAI — Adult & Adolescent Illness](#3-source-2-who-imai--integrated-management-of-adolescent-and-adult-illness)
@@ -18,11 +20,22 @@
 7. [Source 6: IPHS Guidelines 2022 — Facility Standards](#7-source-6-iphs-guidelines-2022--indian-public-health-standards)
 8. [Source 7: Essential Medicines Lists (WHO + India NLEM)](#8-source-7-essential-medicines-lists-who--india-nlem)
 9. [Source 8: Open Datasets for Symptom-Disease Mapping](#9-source-8-open-datasets-for-symptom-disease-mapping-supplementary)
-10. [Data Format Strategy for Bedrock Knowledge Base](#10-data-format-strategy-for-bedrock-knowledge-base)
-11. [Priority Ingestion Order](#11-priority-ingestion-order)
-12. [Hackathon-Specific Strategy (What You Actually Need)](#12-hackathon-specific-strategy-what-you-actually-need)
-13. [The Killer Pitch Line for Judges](#13-the-killer-pitch-line-for-judges)
-14. [Quick Reference: All URLs](#14-quick-reference-all-urls)
+
+### New Sources (Added Feb 14, 2026 — Post Research Review)
+
+10. [Source 9: WHO Prehospital Emergency Care — ABCDE Framework](#10-source-9-who-prehospital-emergency-care--abcde-framework)
+11. [Source 10: National Protocol for Management of Snakebite 2024 (India-Specific)](#11-source-10-national-protocol-for-management-of-snakebite-2024-india-specific)
+12. [Source 11: NHM National Ambulance Service (NAS) Guidelines — 108 vs 102](#12-source-11-nhm-national-ambulance-service-nas-guidelines--108-vs-102)
+13. [Source 12: ABDM Health Data Standards — ICD-10 & LOINC Coding](#13-source-12-abdm-health-data-standards--icd-10--loinc-coding)
+14. [Source 13: Triage Benchmark Datasets (For Evaluation Only)](#14-source-13-triage-benchmark-datasets-for-evaluation-only)
+
+### Strategy & Implementation
+
+15. [Data Format Strategy for Bedrock Knowledge Base](#15-data-format-strategy-for-bedrock-knowledge-base)
+16. [Priority Ingestion Order](#16-priority-ingestion-order)
+17. [Hackathon-Specific Strategy (What You Actually Need)](#17-hackathon-specific-strategy-what-you-actually-need)
+18. [The Killer Pitch Line for Judges](#18-the-killer-pitch-line-for-judges)
+19. [Quick Reference: All URLs](#19-quick-reference-all-urls)
 
 ---
 
@@ -405,7 +418,362 @@ These are **NOT government-approved** on their own. They are supplementary datas
 
 ---
 
-## 10. Data Format Strategy for Bedrock Knowledge Base
+---
+
+# NEW SOURCES (Added February 14, 2026 — Post Research Review)
+
+The following 5 sources were identified during a second round of research. Each has been assessed by a principal AI engineer for relevance, priority, and hackathon applicability.
+
+---
+
+## 10. Source 9: WHO Prehospital Emergency Care — ABCDE Framework
+
+### What It Is
+
+The **ABCDE approach** is the universal emergency assessment framework used by paramedics, first responders, and emergency physicians worldwide. It stands for:
+
+| Letter | Assessment | What to Check |
+|--------|-----------|---------------|
+| **A** | **Airway** | Is the airway clear? Can the patient speak/breathe? |
+| **B** | **Breathing** | Is breathing normal? Rate? Effort? Oxygen levels? |
+| **C** | **Circulation** | Pulse? Bleeding? Skin color? Blood pressure? |
+| **D** | **Disability** | Consciousness level? Pupil response? Blood sugar? |
+| **E** | **Exposure** | Full body check — injuries, rashes, bites, temperature? |
+
+This is published in WHO's prehospital emergency care guidelines and is the standard taught to every emergency medical professional globally.
+
+### Why It's a Strong Addition (Engineer's Assessment)
+
+**Status: NEW — Not previously covered. We had WHO IMAI (district clinician manual) and IMCI (childhood illness), but ABCDE is a different, more structured emergency assessment framework.**
+
+Why it matters for VaidyaVaani:
+- It gives the AI a **structured assessment order** for emergencies. Instead of asking random questions when someone calls in a panic, the AI follows: Airway → Breathing → Circulation → Disability → Exposure.
+- It maps perfectly to the **Emergency Protocol KB routing logic**. The intent classifier detects "emergency" → the AI follows ABCDE to assess severity.
+- It's **simple enough to implement as a decision tree** in Lambda — no complex ML needed.
+- Judges who know emergency medicine will **immediately recognize ABCDE** and respect that you're using it.
+- It's the same framework that **108 ambulance paramedics use** — so VaidyaVaani speaks the same language as the emergency responders.
+
+### How to Use It (Practical Implementation)
+
+**Do NOT ingest the full WHO prehospital manual into the KB.** Instead:
+
+1. **Structure all emergency scripts using ABCDE order.** Every emergency script in the Emergency Protocol KB should follow this sequence:
+
+```markdown
+## EMERGENCY_CARDIAC — ABCDE Assessment Script
+### ICD-10: I21.9 (Acute Myocardial Infarction) | Dispatch: 108
+
+**A — Airway:**
+"Kya woh bol pa rahe hain?" (Can they speak?)
+→ YES: Airway clear, proceed to B
+→ NO: "Unhe side mein lita dijiye. Mooh saaf karein." (Lay on side, clear mouth)
+
+**B — Breathing:**
+"Kya saans chal rahi hai? Tez ya dheemi?" (Is breathing normal? Fast or slow?)
+→ Labored/Fast: Escalate priority
+→ Normal: Proceed to C
+
+**C — Circulation:**
+"Kya seene mein dard hai? Haath ya jabde mein dard ja raha hai?" (Chest pain? Radiating to arm/jaw?)
+→ YES to radiating: CONFIRMED CARDIAC EMERGENCY
+→ "Khoon beh raha hai kahin se?" (Any bleeding?)
+
+**D — Disability:**
+"Kya woh hosh mein hain?" (Are they conscious?)
+→ NO: CRITICAL — immediate 108 dispatch
+→ "Kya haath-pair hil rahe hain?" (Can they move limbs?)
+
+**E — Exposure:**
+"Kya paseena aa raha hai? Ulti ho rahi hai?" (Sweating? Vomiting?)
+→ Sweating + chest pain = classic cardiac presentation
+```
+
+2. **Use ABCDE as the AI's internal assessment framework**, not as a document in the KB. The framework guides how the emergency scripts are written, not what the KB stores.
+
+### Maps to VaidyaVaani Features
+
+- ✅ Emergency Protocol KB script structure (all 15 emergency scripts follow ABCDE)
+- ✅ Intent classification logic (ABCDE determines severity level)
+- ✅ 108 paramedic handoff (AI assessment in same framework as paramedics)
+- ✅ Demo credibility ("We use the WHO ABCDE prehospital assessment framework")
+
+### Hackathon Priority: 🔴 HIGH
+Not as a KB document, but as the structural framework for all emergency scripts. Zero extra documents needed — just restructure existing scripts.
+
+---
+
+## 11. Source 10: National Protocol for Management of Snakebite 2024 (India-Specific)
+
+### What It Is
+
+India's own **National Protocol for Management of Snakebite**, released as part of the **NAPSE (National Action Plan for Prevention and Control of Snakebite Envenoming)** launched in 2024. This is distinct from the WHO SE Asia guidelines — it's India-government-specific.
+
+### Why It's Different from WHO Snakebite Guidelines (Source 4)
+
+| Aspect | WHO SE Asia Guidelines (Source 4) | India National Protocol 2024 (This Source) |
+|--------|-----------------------------------|-------------------------------------------|
+| **Publisher** | WHO Regional Office | Government of India (MoHFW) |
+| **Scope** | All of South-East Asia | India-specific |
+| **Species Focus** | Regional (multiple countries) | India's "Big Four" + regional species |
+| **Legal Authority** | Advisory | Government mandate |
+| **Year** | 2016 (2nd edition) | 2024 (latest) |
+| **Goal** | General management | Halve snakebite deaths by 2030 |
+
+### Key Protocols (India-Specific)
+
+The 2024 protocol **strictly prohibits** common harmful practices:
+
+```
+INDIA NATIONAL SNAKEBITE PROTOCOL 2024 — STRICT PROHIBITIONS:
+❌ DO NOT apply tourniquet (causes tissue death, amputation)
+❌ DO NOT suck the venom (ineffective, risks infection)
+❌ DO NOT cut or incise the bite wound
+❌ DO NOT apply ice or cold compress
+❌ DO NOT apply herbal remedies or "snake stones"
+❌ DO NOT give alcohol or traditional medicines
+❌ DO NOT try to catch or kill the snake
+```
+
+These prohibitions are critical for VaidyaVaani because **rural India commonly practices all of these harmful "remedies."** The AI must actively counter these myths.
+
+### India's "Big Four" Venomous Snakes
+
+| Snake | Hindi Name | Region | Venom Type |
+|-------|-----------|--------|------------|
+| **Indian Cobra** (Naja naja) | Naag | All India | Neurotoxic |
+| **Common Krait** (Bungarus caeruleus) | Karait | All India | Neurotoxic |
+| **Russell's Viper** (Daboia russelii) | Koriwala / Ghonas | All India | Hemotoxic |
+| **Saw-scaled Viper** (Echis carinatus) | Phoorsa | Western/Central India | Hemotoxic |
+
+These four species account for the vast majority of India's 50,000+ annual snakebite deaths.
+
+### How to Use It
+
+- **Replace** the generic WHO snakebite first-aid in your Emergency Protocol KB with this India-specific protocol
+- Include the "Big Four" identification guide (description-based, for voice; photo-based, for WhatsApp)
+- Explicitly include the "DO NOT" list — the AI must actively counter harmful myths
+- Tag with ICD-10: T63.0 (Contact with snake venom)
+
+### Maps to VaidyaVaani Features
+
+- ✅ Snakebite emergency script (India-specific, not generic WHO)
+- ✅ Myth-busting ("Tourniquet mat lagaiye!" — Don't apply tourniquet!)
+- ✅ Species identification (Big Four descriptions for voice triage)
+- ✅ WhatsApp photo path (snake photo → Claude Vision → species ID)
+- ✅ 108 dispatch with "snakebite + suspected species" info for hospital
+
+### Hackathon Priority: 🔴 HIGH
+Replaces/supplements Source 4 for the snakebite emergency script. India-specific = more credible with judges.
+
+---
+
+## 12. Source 11: NHM National Ambulance Service (NAS) Guidelines — 108 vs 102
+
+### What It Is
+
+The **National Health Mission (NHM)** operates two distinct ambulance services across India. VaidyaVaani's emergency dispatch logic **MUST** know the difference — dispatching the wrong type is a credibility killer with judges.
+
+### The Two Services
+
+| Service | Dial Number | Type | Crew | Use Case | Cost |
+|---------|-------------|------|------|----------|------|
+| **108 — Emergency Response** | 108 | Advanced Life Support (ALS) / Basic Life Support (BLS) | Paramedic + Driver + Equipment | Life-threatening emergencies: cardiac arrest, trauma, stroke, snakebite, severe bleeding, poisoning | Free |
+| **102 — Patient Transport** | 102 | Basic transport vehicle | Driver only (no paramedic) | Non-emergency transport: pregnant woman to hospital for delivery, patient transfer between facilities, follow-up visits | Free |
+
+### Why This Matters for VaidyaVaani
+
+Getting this wrong destroys credibility:
+
+| Scenario | Correct Dispatch | Wrong Dispatch |
+|----------|-----------------|----------------|
+| Heart attack | **108** (paramedic needed) | 102 = patient dies in transit, no paramedic |
+| Pregnant woman, routine labor | **102** (transport to hospital) | 108 = wastes critical emergency resource |
+| Pregnant woman, hemorrhaging | **108** (life-threatening) | 102 = no paramedic, patient bleeds out |
+| Snakebite | **108** (needs antivenom en route) | 102 = no medical equipment |
+| Diabetic patient, routine checkup | **102** (transport only) | 108 = wastes emergency ambulance |
+| Child with high fever, stable | **102** (transport to PHC) | 108 = overkill, wastes resources |
+| Child with seizure, unconscious | **108** (life-threatening) | 102 = no paramedic |
+
+### How to Use It (Practical Implementation)
+
+**This is NOT a KB document.** This is operational logic that goes into:
+
+1. **Emergency scripts** — each script specifies which number to dispatch:
+```markdown
+## EMERGENCY_CARDIAC
+Dispatch: 108 (Emergency Response — Paramedic Required)
+
+## EMERGENCY_PREGNANCY_HEMORRHAGE  
+Dispatch: 108 (Emergency Response — Life Threatening)
+
+## NON_EMERGENCY_PREGNANCY_LABOR
+Dispatch: 102 (Patient Transport — Routine Delivery)
+
+## EMERGENCY_SNAKEBITE
+Dispatch: 108 (Emergency Response — Antivenom May Be Needed)
+```
+
+2. **Lambda routing code** — the dispatch function checks severity tier:
+```
+Tier A (Critical/Life-Threatening) → Dispatch 108
+Tier B (Urgent/Non-Critical) → Dispatch 102 OR advise self-transport
+Tier C (Non-Urgent) → Advise visit to PHC during working hours
+```
+
+3. **Demo script** — when the AI says "Ambulance bhej rahi hoon," it should specify:
+   - "108 emergency ambulance bhej rahi hoon, paramedic aayega" (for emergencies)
+   - "102 gaadi bhej rahi hoon, aapko hospital le jayegi" (for transport)
+
+### Maps to VaidyaVaani Features
+
+- ✅ Emergency dispatch logic (108 vs 102 routing)
+- ✅ Emergency scripts (each script specifies correct dispatch number)
+- ✅ Demo credibility (shows you understand India's ambulance infrastructure)
+- ✅ Enterprise Readiness (realistic, not fantasy "auto-booking")
+- ✅ Conference call bridge (108 for Tier A, API booking for Tier B)
+
+### Hackathon Priority: 🔴 HIGH
+Not a KB document — operational logic in Lambda + emergency scripts. 30 minutes to implement, massive credibility boost.
+
+---
+
+## 13. Source 12: ABDM Health Data Standards — ICD-10 & LOINC Coding
+
+### What It Is
+
+The **Ayushman Bharat Digital Mission (ABDM)** has adopted international health data standards for interoperability across India's digital health ecosystem:
+
+- **ICD-10** (International Classification of Diseases, 10th Revision) — standard codes for every diagnosis
+- **LOINC** (Logical Observation Identifiers Names and Codes) — standard codes for lab tests and observations
+- **MDDS** (Metadata and Data Standards) — India's health data exchange standards
+
+### Why It Matters for VaidyaVaani
+
+We already covered ABDM/FHIR interoperability in the Enterprise Readiness document (Risk 4: "The Silo", Standard 5: "Interoperability"). But the specific use of **ICD-10 codes** adds a concrete, implementable layer:
+
+When VaidyaVaani classifies a condition, it should internally tag it with the ICD-10 code. This makes every triage record ABDM-compliant from day one.
+
+### ICD-10 Codes for VaidyaVaani's Key Conditions
+
+| Condition | ICD-10 Code | Hindi Trigger Keywords |
+|-----------|-------------|----------------------|
+| Acute Myocardial Infarction (Heart Attack) | I21.9 | seene mein dard, haath mein dard, saans nahi |
+| Stroke | I64 | ek taraf ka shareer kaam nahi, bolne mein dikkat |
+| Snakebite Envenoming | T63.0 | saanp ne kaata, saanp ka zeher |
+| Acute Gastroenteritis (Child) | A09 | ulti, dast, bukhar |
+| Dehydration | E86.0 | paani ki kami, mooh sukha |
+| Pre-eclampsia | O14.9 | pregnancy mein sir dard, sujan, BP |
+| Cellulitis (Wound Infection) | L03.9 | ghav mein sujan, laal, garam |
+| Diabetes Mellitus Type 2 | E11.9 | sugar ki bimari, zyada pyaas |
+| Hypertension | I10 | BP badha hua, sir dard |
+| Asthma / Breathing Difficulty | J45.9 | saans phoolna, dama |
+| Seizure / Convulsions | R56.9 | mirgi, jhatkay |
+| Burns | T30.0 | jal gaya, aag se |
+| Poisoning | T65.9 | zeher kha liya, dawai zyada |
+| Allergic Reaction (Anaphylaxis) | T78.2 | sujan, saans mein dikkat, kuch khane ke baad |
+| Dengue Fever | A90 | tez bukhar, jodo mein dard, rash |
+
+### How to Use It (Practical Implementation)
+
+1. **Hardcode ICD-10 codes in every emergency script:**
+```markdown
+## EMERGENCY_CARDIAC
+### ICD-10: I21.9 | Dispatch: 108 | Severity: CRITICAL
+```
+
+2. **Log ICD-10 code with every triage decision in DynamoDB:**
+```json
+{
+  "call_id": "VV-2026-001234",
+  "timestamp": "2026-02-15T02:30:00Z",
+  "icd10_code": "I21.9",
+  "condition": "Acute Myocardial Infarction",
+  "severity": "CRITICAL",
+  "dispatch": "108",
+  "location": "Khedi Village, MP"
+}
+```
+
+3. **Use ICD-10 codes in FHIR JSON records** for ABDM interoperability:
+```json
+{
+  "resourceType": "Condition",
+  "code": {
+    "coding": [{
+      "system": "http://hl7.org/fhir/sid/icd-10",
+      "code": "I21.9",
+      "display": "Acute myocardial infarction, unspecified"
+    }]
+  }
+}
+```
+
+4. **Use ICD-10 codes for Disease Surveillance aggregation:**
+   - Group calls by ICD-10 code + location + time
+   - "23 calls with A90 (Dengue) from Khedi village in 3 days" → outbreak alert
+
+### The Pitch to Judges
+
+> "Every diagnosis VaidyaVaani makes is tagged with ICD-10 codes and stored in FHIR JSON format, making us ABDM-interoperable on day one. Our disease surveillance system aggregates by ICD-10 code and geography to detect outbreak patterns."
+
+### Maps to VaidyaVaani Features
+
+- ✅ ABDM interoperability (FHIR + ICD-10 = compliant from day 1)
+- ✅ Disease surveillance (aggregate by ICD-10 code + location)
+- ✅ Audit trail (every triage decision has a standard medical code)
+- ✅ Enterprise Readiness (shows you understand health data standards)
+- ✅ Government pitch (ABDM is the government's own digital health initiative)
+
+### Hackathon Priority: 🟡 MEDIUM
+Hardcode ICD-10 codes for 15 conditions in emergency scripts = 30 minutes of work. Add to DynamoDB logging = 1 hour. Massive credibility for minimal effort.
+
+---
+
+## 14. Source 13: Triage Benchmark Datasets (For Evaluation Only)
+
+### ⚠️ IMPORTANT: These Are NOT for the Knowledge Base
+
+These datasets are for **testing and evaluating** your triage prompts and flows — NOT for feeding into the Bedrock KB as medical facts. The distinction is critical.
+
+### Available Benchmark Datasets
+
+| Dataset | Source | What It Is | Format |
+|---------|--------|-----------|--------|
+| **MIETIC** | Built on MIMIC-IV (MIT) | Triage instruction corpus with labeled emergency cases and ESI (Emergency Severity Index) levels. Designed specifically for LLM triage benchmarking. | Structured dataset |
+| **TriageBench** | Academic | Triage vignettes (clinical scenarios) with expected severity classifications. Used to test if an LLM correctly triages patients. | Vignettes + labels |
+| **Kaggle Synthetic Triage** | Kaggle | Synthetic emergency department triage data. Useful for testing classification accuracy. | CSV |
+
+### How to Use Them (Engineer's Assessment)
+
+**For the hackathon:** You won't have time to run proper benchmark evaluations. But mention them in your methodology:
+
+> "We plan to validate our triage accuracy using established benchmarks like MIETIC (built on MIMIC-IV) and TriageBench, adapted for Indian clinical contexts with ICMR STW-based ground truth labels."
+
+**For production (post-hackathon):**
+1. Take MIETIC vignettes → translate to Hindi → run through VaidyaVaani
+2. Compare AI's triage classification vs ground truth ESI levels
+3. Measure: accuracy, over-triage rate, under-triage rate
+4. Goal: over-triage is acceptable (safe), under-triage is NOT (dangerous)
+
+### Important Caveats
+
+- **MIETIC uses ESI (US standard)** — India doesn't use ESI. You'd need to map ESI levels to your own severity tiers (Critical/Urgent/Non-Urgent).
+- **MIMIC-IV is US hospital data** — disease patterns, demographics, and presentations differ from rural India. Use for methodology validation, not as ground truth for Indian conditions.
+- **Synthetic data has limitations** — it doesn't capture how a rural Indian farmer describes chest pain in Bhojpuri. Real-world testing with Indian clinical scenarios is essential.
+
+### Maps to VaidyaVaani Features
+
+- ✅ Triage accuracy validation (post-hackathon)
+- ✅ Methodology credibility ("we know how to evaluate medical AI")
+- ✅ Safety assurance ("we measure over-triage vs under-triage rates")
+- ⚠️ NOT for KB ingestion — evaluation only
+
+### Hackathon Priority: 🟢 LOW
+Mention in methodology/Q&A. Don't build during hackathon. Zero documents to ingest.
+
+---
+
+## 15. Data Format Strategy for Bedrock Knowledge Base
 
 ### What Bedrock KB Supports
 
@@ -431,11 +799,16 @@ Bedrock KB primarily processes **text-based content**. It can handle tables with
 | WHO IMAI | PDF (large multi-chapter) | **Markdown (chunked by topic)** | Large docs need splitting for better retrieval |
 | WHO IMCI | PDF (large multi-chapter) | **Markdown (chunked by topic)** | Same as IMAI — split into assessment sections |
 | WHO Snakebite | PDF (large) | **Markdown (chunked)** | Split into: first aid, species ID, treatment |
+| India Snakebite 2024 | PDF | **Markdown** | Merge with WHO snakebite, add India-specific prohibitions |
 | RMNCH+A | PDF (handbook) | **Markdown (chunked by condition)** | Split into: pregnancy, newborn, child sections |
 | IPHS | PDF (guidelines) | **Markdown (by facility level)** | Split into: Sub-Centre, PHC, CHC, District Hospital |
 | NLEM | PDF (list) | **CSV** | Tabular data — medicine name, category, facility level |
-| Emergency Scripts | Hand-crafted | **Markdown** | Deterministic scripts, NOT AI-generated |
+| Emergency Scripts | Hand-crafted | **Markdown (ABCDE structure)** | Deterministic scripts with ICD-10 + 108/102 dispatch |
 | Symptom-Disease Data | CSV | **CSV (direct)** | Already structured, direct ingest |
+| NAS 108/102 Logic | Operational | **Not in KB — Lambda code** | Routing logic, not a document |
+| ICD-10 Codes | Reference | **Hardcoded in scripts + DynamoDB** | Tags, not a separate document |
+| ABCDE Framework | WHO Guidelines | **Not in KB — script structure** | Framework for writing scripts, not a document |
+| Triage Benchmarks | Academic datasets | **Not in KB — evaluation only** | For testing accuracy post-hackathon |
 
 ### The Emergency Scripts Strategy (CRITICAL)
 
@@ -446,36 +819,63 @@ For life-threatening emergencies, VaidyaVaani must use **deterministic, pre-appr
 2. System retrieves the **pre-approved static script** from Knowledge Base
 3. AI reads the script verbatim — no generation, no hallucination risk
 
-**Example emergency script format (Markdown):**
+**Example emergency script format (Markdown) — Now using ABCDE Framework + ICD-10 + 108/102 Dispatch:**
 
 ```markdown
 ## EMERGENCY_CHEST_PAIN
-### Source: ICMR STW + WHO Guidelines
-### Language: Hindi Script (for TTS)
+### Source: ICMR STW (STEMI) + WHO Prehospital Guidelines + India NAS
+### ICD-10: I21.9 (Acute Myocardial Infarction, Unspecified)
+### Dispatch: 108 (Emergency Response — Paramedic Required)
+### Language: Bilingual (Hindi + English)
 
-**Immediate Actions:**
+**A — AIRWAY:**
+"Kya woh bol pa rahe hain?" (Can they speak?)
+→ NO → "Unhe side mein lita dijiye, mooh saaf karein" (Lay on side, clear mouth)
+→ YES → Proceed to B
+
+**B — BREATHING:**
+"Saans chal rahi hai? Tez ya mushkil se?" (Breathing? Fast or difficult?)
+→ Labored → Escalate priority, note for paramedic
+→ Normal → Proceed to C
+
+**C — CIRCULATION:**
+"Seene mein dard hai? Haath ya jabde mein ja raha hai?" (Chest pain? Radiating to arm/jaw?)
+→ YES (radiating) → CONFIRMED CARDIAC — immediate 108 dispatch
+"Paseena aa raha hai?" (Sweating?)
+→ YES → Classic cardiac presentation
+
+**D — DISABILITY:**
+"Kya woh hosh mein hain?" (Are they conscious?)
+→ NO → CRITICAL — 108 dispatched, stay on line
+"Haath-pair hil rahe hain?" (Can they move limbs?)
+
+**E — EXPOSURE:**
+"Ulti ho rahi hai?" (Vomiting?)
+"Pehle kabhi aisa hua hai?" (Has this happened before?)
+
+**IMMEDIATE ACTIONS:**
 - Rogi ko lita dijiye (Keep patient lying down)
 - Paani mat dijiye (Do not give water)
 - Agar aspirin hai toh ek goli chabane ko dijiye (If aspirin available, chew one tablet)
 - Rogi ko chalne mat dijiye (Do not let patient walk)
-- 108 ambulance abhi bhej rahi hoon (Dispatching 108 ambulance now)
-
-**Danger Signs (Escalate Immediately):**
-- Behoshi (Unconsciousness)
-- Saans band (Breathing stopped)
-- Dhadkan band (Heart stopped)
+- 108 emergency ambulance abhi bhej rahi hoon (Dispatching 108 emergency ambulance now)
 
 **DO NOT:**
 - Do not let patient eat or drink
 - Do not let patient walk or exert
 - Do not wait — this is a medical emergency
+
+**DISPATCH:**
+- 108 Emergency Response (Paramedic + ALS equipment)
+- SMS to 3 emergency contacts with location
+- Alert nearest hospital with cardiac facility
 ```
 
-Create similar scripts for: snakebite, severe bleeding, stroke, choking, burns, poisoning, drowning, allergic reaction (anaphylaxis), seizure, pregnancy emergency.
+Create similar scripts for: snakebite, severe bleeding, stroke, choking, burns, poisoning, drowning, allergic reaction (anaphylaxis), seizure, pregnancy emergency. **Each script must include: ABCDE assessment structure, ICD-10 code, 108 vs 102 dispatch specification, and bilingual (Hindi + English) instructions.**
 
 ---
 
-## 11. Priority Ingestion Order
+## 16. Priority Ingestion Order
 
 For building the Bedrock Knowledge Base, follow this order:
 
@@ -511,7 +911,7 @@ For building the Bedrock Knowledge Base, follow this order:
 
 ---
 
-## 12. Hackathon-Specific Strategy (What You Actually Need)
+## 17. Hackathon-Specific Strategy (What You Actually Need)
 
 ### The Reality Check
 
@@ -553,26 +953,28 @@ You don't need ALL 157 STWs for the hackathon. You need data for your **3 demo s
 
 **Day 3:**
 1. Hand-craft 10 emergency first-aid scripts in Markdown (from WHO/ICMR protocols):
-   - `emergency-chest-pain.md`
-   - `emergency-snakebite.md`
-   - `emergency-severe-bleeding.md`
-   - `emergency-stroke.md`
-   - `emergency-choking.md`
-   - `emergency-burns.md`
-   - `emergency-poisoning.md`
-   - `emergency-allergic-reaction.md`
-   - `emergency-seizure.md`
-   - `emergency-pregnancy.md`
-2. Each script in both English and Hindi (for bilingual TTS)
-3. Upload all to S3, sync with Bedrock KB
+   - `emergency-chest-pain.md` (ICD-10: I21.9, Dispatch: 108)
+   - `emergency-snakebite.md` (ICD-10: T63.0, Dispatch: 108) — use India National Protocol 2024
+   - `emergency-severe-bleeding.md` (ICD-10: R58, Dispatch: 108)
+   - `emergency-stroke.md` (ICD-10: I64, Dispatch: 108)
+   - `emergency-choking.md` (ICD-10: T17.9, Dispatch: 108)
+   - `emergency-burns.md` (ICD-10: T30.0, Dispatch: 108)
+   - `emergency-poisoning.md` (ICD-10: T65.9, Dispatch: 108)
+   - `emergency-allergic-reaction.md` (ICD-10: T78.2, Dispatch: 108)
+   - `emergency-seizure.md` (ICD-10: R56.9, Dispatch: 108)
+   - `emergency-pregnancy.md` (ICD-10: O14.9/O72.1, Dispatch: 108 for hemorrhage/eclampsia, 102 for routine labor)
+2. **Every script must follow ABCDE assessment structure** (Airway → Breathing → Circulation → Disability → Exposure)
+3. **Every script must include ICD-10 code + 108 vs 102 dispatch specification**
+4. Each script in both English and Hindi (for bilingual TTS)
+5. Upload all to S3, sync with Bedrock KB
 
 **End of Day 3: Knowledge Base has ~25-30 documents covering all demo scenarios + common emergencies.**
 
 ---
 
-## 13. The Killer Pitch Line for Judges
+## 18. The Killer Pitch Line for Judges
 
-> **"Our knowledge base is powered by ICMR Standard Treatment Workflows — the same 157 government-mandated protocols across 28 specialties that the Union Health Ministry has directed all states to adopt — supplemented by WHO IMAI and IMCI clinical guidelines designed specifically for resource-limited settings. VaidyaVaani doesn't use random internet data. It uses the exact same protocols the government wants every doctor in India to follow."**
+> **"Our knowledge base is powered by ICMR Standard Treatment Workflows — the same 157 government-mandated protocols across 28 specialties that the Union Health Ministry has directed all states to adopt — supplemented by WHO IMAI and IMCI clinical guidelines designed specifically for resource-limited settings. Every emergency script follows the WHO ABCDE prehospital assessment framework, every diagnosis is tagged with ICD-10 codes for ABDM interoperability, and our dispatch logic correctly routes between 108 emergency response and 102 patient transport. VaidyaVaani doesn't use random internet data. It uses the exact same protocols the government wants every doctor in India to follow."**
 
 ### Why This Works
 
@@ -580,7 +982,10 @@ You don't need ALL 157 STWs for the hackathon. You need data for your **3 demo s
 2. **"Government-mandated"** — not just approved, but actively directed by the Health Secretary.
 3. **"157 protocols across 28 specialties"** — shows comprehensive coverage, not a toy.
 4. **WHO IMAI/IMCI** — global gold standard for resource-limited triage. Unquestionable authority.
-5. **"Same protocols the government wants every doctor to follow"** — positions VaidyaVaani as a digital extension of government healthcare policy.
+5. **"ABCDE framework"** — any judge with emergency medicine background instantly recognizes this.
+6. **"ICD-10 codes"** — shows you understand health data standards, not just coding.
+7. **"108 vs 102"** — shows you understand India's actual ambulance infrastructure.
+8. **"Same protocols the government wants every doctor to follow"** — positions VaidyaVaani as a digital extension of government healthcare policy.
 
 ### For the Enterprise Readiness Slide
 
@@ -589,10 +994,12 @@ Add to the 8-Point Enterprise Shield:
 | # | Category | Standard | VaidyaVaani Implementation |
 |---|----------|----------|---------------------------|
 | 9 | **Medical Data** | ICMR STW + WHO IMAI/IMCI | 157 government-mandated treatment protocols + WHO clinical guidelines for resource-limited settings |
+| 10 | **Emergency Framework** | WHO ABCDE + India NAS | ABCDE prehospital assessment + correct 108/102 dispatch routing |
+| 11 | **Health Data Coding** | ABDM / ICD-10 / LOINC | Every diagnosis tagged with ICD-10, stored in FHIR JSON, ABDM-ready |
 
 ---
 
-## 14. Quick Reference: All URLs
+## 19. Quick Reference: All URLs
 
 ### Government of India Sources
 
@@ -604,6 +1011,9 @@ Add to the 8-Point Enterprise Shield:
 | NHM Portal | https://nhm.gov.in |
 | IPHS Guidelines | Available from nhm.gov.in |
 | India NLEM | Available from Ministry of Health portal |
+| India NAPSE (Snakebite 2024) | Search "India NAPSE snakebite 2024" on MoHFW portal |
+| NHM NAS Guidelines (108/102) | Available from nhm.gov.in (National Ambulance Service section) |
+| ABDM Health Data Standards | https://abdm.gov.in |
 
 ### WHO Sources
 
@@ -617,6 +1027,16 @@ Add to the 8-Point Enterprise Shield:
 | WHO Snakebite Treatment Page | https://www.who.int/teams/control-of-neglected-tropical-diseases/snakebite-envenoming/treatment |
 | WHO Snakebite Strategy 2030 | https://www.who.int/publications/i/item/9789241515641 |
 | WHO Essential Medicines List | https://www.who.int/groups/expert-committee-on-selection-and-use-of-essential-medicines/essential-medicines-lists |
+| WHO Prehospital Emergency Care (ABCDE) | Available from WHO Emergency Care publications |
+
+### Health Data Standards
+
+| Standard | Description | Reference |
+|----------|-------------|-----------|
+| ICD-10 | International Classification of Diseases, 10th Revision | https://icd.who.int/browse10 |
+| LOINC | Logical Observation Identifiers Names and Codes | https://loinc.org |
+| FHIR | Fast Healthcare Interoperability Resources | https://www.hl7.org/fhir/ |
+| ABDM MDDS | India Metadata and Data Standards for Health | https://abdm.gov.in |
 
 ### Supplementary Open Datasets
 
@@ -625,6 +1045,14 @@ Add to the 8-Point Enterprise Shield:
 | Symptom-Disease Prediction | Mendeley Data | Search on data.mendeley.com |
 | TachyHealth | HuggingFace | Search on huggingface.co/datasets |
 | Disease Symptom Knowledge DB | Kaggle | Search on kaggle.com/datasets |
+
+### Triage Benchmark Datasets (Evaluation Only)
+
+| Dataset | Description | Use |
+|---------|-------------|-----|
+| MIETIC | Triage instruction corpus built on MIMIC-IV, with ESI levels | LLM triage benchmarking |
+| TriageBench | Clinical vignettes with expected severity classifications | Triage accuracy testing |
+| Kaggle Synthetic Triage | Synthetic ED triage data | Classification accuracy testing |
 
 ### News References (For Credibility)
 
@@ -638,25 +1066,55 @@ Add to the 8-Point Enterprise Shield:
 
 ---
 
-## Summary: The Data Strategy in One Table
+## Summary: The Complete Data Strategy
 
-| Layer | Source | Authority | Format | Documents | Purpose |
-|-------|--------|-----------|--------|-----------|---------|
-| **Core Triage** | ICMR STWs | Govt of India (mandated) | PDF | 157 (10 for hackathon) | Treatment protocols for all conditions |
-| **Triage Logic** | WHO IMAI | WHO | PDF → Markdown | 5-10 chunks | "What questions to ask" decision trees |
-| **Pediatric** | WHO IMCI | WHO | PDF → Markdown | 3-5 chunks | Child assessment, ORS, danger signs |
-| **Snakebite** | WHO + NAPSE | WHO + Govt of India | PDF → Markdown | 2-3 chunks | First aid, species ID, treatment |
-| **Maternal** | RMNCH+A | Govt of India (NHM) | PDF → Markdown | 3-5 chunks | Pregnancy danger signs, maternal care |
-| **Referral** | IPHS | Govt of India (NHM) | PDF → Markdown | 4 chunks | Facility capabilities by level |
-| **Medicines** | NLEM | Govt of India | PDF → CSV | 1 file | Available medicines by facility |
-| **Emergency** | Hand-crafted from WHO/ICMR | WHO + ICMR (derived) | Markdown | 10 scripts | Deterministic first-aid (no hallucination) |
-| **Supplementary** | Open datasets | Academic/Community | CSV | 1-3 files | Symptom-disease mapping |
+### All Sources in One Table
 
-**Total for Hackathon: ~25-30 documents**
-**Total for Production: ~200+ documents**
+| # | Layer | Source | Authority | Format | Documents | Purpose |
+|---|-------|--------|-----------|--------|-----------|---------|
+| 1 | **Core Triage** | ICMR STWs | Govt of India (mandated) | PDF | 157 (10 for hackathon) | Treatment protocols for all conditions |
+| 2 | **Triage Logic** | WHO IMAI | WHO | PDF → Markdown | 5-10 chunks | "What questions to ask" decision trees |
+| 3 | **Pediatric** | WHO IMCI | WHO | PDF → Markdown | 3-5 chunks | Child assessment, ORS, danger signs |
+| 4 | **Snakebite** | WHO + India NAPSE 2024 | WHO + Govt of India | PDF → Markdown | 2-3 chunks | First aid, species ID, India-specific prohibitions |
+| 5 | **Maternal** | RMNCH+A | Govt of India (NHM) | PDF → Markdown | 3-5 chunks | Pregnancy danger signs, maternal care |
+| 6 | **Referral** | IPHS | Govt of India (NHM) | PDF → Markdown | 4 chunks | Facility capabilities by level |
+| 7 | **Medicines** | NLEM | Govt of India | PDF → CSV | 1 file | Available medicines by facility |
+| 8 | **Supplementary** | Open datasets | Academic/Community | CSV | 1-3 files | Symptom-disease mapping |
+| 9 | **Emergency Framework** | WHO ABCDE | WHO | Not in KB — script structure | 0 (framework) | ABCDE assessment order for all emergency scripts |
+| 10 | **Emergency Scripts** | Hand-crafted from WHO/ICMR | WHO + ICMR (derived) | Markdown (ABCDE + ICD-10 + 108/102) | 10-15 scripts | Deterministic first-aid (no hallucination) |
+| 11 | **Ambulance Dispatch** | NHM NAS Guidelines | Govt of India (NHM) | Not in KB — Lambda logic | 0 (code) | 108 vs 102 routing in dispatch function |
+| 12 | **Health Data Coding** | ABDM / ICD-10 / LOINC | WHO + Govt of India | Hardcoded in scripts + DynamoDB | 0 (tags) | Every diagnosis tagged with ICD-10 code |
+| 13 | **Evaluation** | MIETIC / TriageBench | Academic | Not in KB — testing only | 0 (benchmarks) | Post-hackathon triage accuracy validation |
+
+### What Goes INTO the Bedrock KB (Documents)
+
+| Category | Documents | Total |
+|----------|-----------|-------|
+| ICMR STWs (PDFs) | 10 for hackathon, 157 for production | 10-157 |
+| WHO IMAI/IMCI chunks (Markdown) | Triage logic, child assessment, ORS | 8-15 |
+| Snakebite protocols (Markdown) | WHO + India 2024, merged | 2-3 |
+| RMNCH+A chunks (Markdown) | Pregnancy, maternal, newborn | 3-5 |
+| Emergency scripts (Markdown) | ABCDE-structured, ICD-10 tagged, 108/102 specified | 10-15 |
+| IPHS facility data (Markdown) | By facility level | 4 |
+| NLEM medicines (CSV) | By facility level | 1 |
+| Symptom-disease mapping (CSV) | Supplementary | 1-3 |
+| **HACKATHON TOTAL** | | **~35-45 documents** |
+| **PRODUCTION TOTAL** | | **~200+ documents** |
+
+### What Does NOT Go Into the KB (Operational Logic)
+
+| Item | Where It Lives | Why Not in KB |
+|------|---------------|---------------|
+| ABCDE framework | Structure of emergency scripts | It's a framework, not a document |
+| 108 vs 102 dispatch logic | Lambda routing code | It's operational logic, not medical data |
+| ICD-10 codes | Hardcoded in scripts + DynamoDB schema | They're tags/metadata, not searchable content |
+| Triage benchmarks (MIETIC etc.) | Evaluation pipeline (post-hackathon) | For testing accuracy, not for medical facts |
+| ASHA training modules | Reference only | Know it for Q&A, don't ingest |
+| DPDP Act compliance | Architecture design | Legal framework, not medical data |
 
 ---
 
 *This document is part of the VaidyaVaani project documentation for the AI for Bharat 2026 Hackathon.*
 *Team: SavyaSachi*
-*Last Updated: February 14, 2026*
+*Last Updated: February 14, 2026 (v2 — added 5 new sources from research review)*
+*Total Sources: 13 (8 original + 5 new)*
