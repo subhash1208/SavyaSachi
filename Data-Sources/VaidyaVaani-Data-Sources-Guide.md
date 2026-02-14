@@ -1116,5 +1116,359 @@ Add to the 8-Point Enterprise Shield:
 
 *This document is part of the VaidyaVaani project documentation for the AI for Bharat 2026 Hackathon.*
 *Team: SavyaSachi*
-*Last Updated: February 14, 2026 (v2 — added 5 new sources from research review)*
-*Total Sources: 13 (8 original + 5 new)*
+*Last Updated: February 14, 2026 (v3 — merged Knowledge Base Sources catalog)*
+*Total Sources: 13 core + 30+ extended catalog*
+
+---
+
+# EXTENDED SOURCE CATALOG (Merged from Knowledge-Base-Sources)
+
+The following is a comprehensive catalog of ALL clinical guidelines, standards, and regulatory documents relevant to VaidyaVaani — organized into 9 categories. This extends the 13 core sources above with additional India-specific and WHO sources for production readiness.
+
+---
+
+## Category 1: Emergency Triage & First Aid (Global + India)
+
+*Extends Sources 1-5, 9-11 above with additional emergency/triage documents.*
+
+### E1: Emergency Triage Assessment and Treatment (ETAT) — Paediatric
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | WHO |
+| **Scope** | Triage of sick children into Emergency / Priority / Non-urgent; ABCD signs; first 5-10 minute actions |
+| **VaidyaVaani Use** | Paediatric triage decision trees; danger-sign rules for under-5s; safe wording for "emergency" vs "can wait" |
+| **Format** | PDF → convert to Markdown, chunk around "Danger Signs" and "Emergency Signs" sections |
+| **URL** | https://www.afro.who.int/sites/default/files/2017-06/participant_manual.pdf |
+
+### E2: WHO Adult Emergency Triage Algorithms
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | WHO / National Adaptations |
+| **Scope** | Adult triage (respiratory distress, chest pain, shock, altered consciousness, trauma) |
+| **VaidyaVaani Use** | Adult triage logic; classify calls into Critical / Urgent / Non-urgent; informs 108 dispatch |
+| **Format** | PDFs/posters; chunk algorithms and action boxes for RAG and static scripts |
+| **URL** | https://www.safetyandquality.gov.au/sites/default/files/2024-04/emergency_triage_education_kit_-_second_edition.pdf |
+
+### E3: Basic Emergency Care (BEC): Approach to the Acutely Ill and Injured
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | WHO |
+| **Scope** | ABCDE approach; acute illness & injury; stabilisation steps |
+| **VaidyaVaani Use** | Backing for question sequences (what to ask), and stabilise-then-refer actions |
+| **Format** | Training pack PDFs; only need sections on "approach" and common emergencies |
+
+### E4: F-IMNCI Operational Guidelines (India)
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | MoHFW / NHM (India) |
+| **Scope** | Facility-level management of sick neonates and children; includes ETAT-style triage and emergency signs |
+| **VaidyaVaani Use** | India-specific paediatric triage thresholds; "danger signs" and when to refer to higher facility |
+| **Format** | PDF; chunk "triage" and "emergency signs" sections |
+| **URL** | https://nhm.gov.in/images/pdf/programmes/child-health/guidelines/operational_guidelines_for_fimnci.pdf |
+
+### E5: F-IMNCI Chart Booklet (India)
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | MoHFW / NHM (India) |
+| **Scope** | Visual charts for under-5 assessment: pneumonia, diarrhea, malnutrition, fever |
+| **VaidyaVaani Use** | Simple rule-based paediatric flows for voice triage; cross-check LLM outputs against these rules |
+| **Format** | PDF booklet; convert chart text into machine-readable tables |
+| **URL** | https://nhm.gov.in/images/pdf/programmes/child-health/guidelines/Revised-F-IMNCI-Modules-2023/FIMNCI-Chart-Booklet-2023.pdf |
+
+### E6: Emergency Triage of Newborn — OSCE / Mentoring Checklists (India)
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | NHM (India) |
+| **Scope** | Newborn emergency triage steps, assessment checklists |
+| **VaidyaVaani Use** | Neonatal red-flag detection and "stabilise + immediate referral" flows |
+| **Format** | PDF; short, highly structured — ideal as static protocols |
+| **URL** | https://nhm.gov.in/New_Updates_2018/NNW/Mentoring%20Checklists.pdf |
+
+### E7: Basic First Aid Manual (NDMA)
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | NDMA / State SDMAs (e.g., Meghalaya SDMA) |
+| **Scope** | Layperson-oriented first aid: bleeding, fractures, burns, snakebite, CPR, choking |
+| **VaidyaVaani Use** | Verbatim first-aid scripts for callers (read via RAG), plus clear "Do / Don't" lists |
+| **Format** | PDF; chunk by condition (snakebite, burns, fracture, etc.) |
+| **URL** | https://msdma.gov.in/publications/Basic_First_Aid_Manual_English.pdf |
+
+### E8: Strengthening Facility Based Paediatric Care (India)
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | NHM (India) |
+| **Scope** | How to implement paediatric emergency care and triage in hospitals |
+| **VaidyaVaani Use** | Justification for triage categories and referral recommendations |
+| **Format** | PDF; mainly for design docs & pitch, not direct RAG |
+| **URL** | https://nhm.gov.in/images/pdf/programmes/child-health/guidelines/Strenghtening_Facility_Based_Paediatric_Care-Operational_Guidelines.pdf |
+
+---
+
+## Category 2: Maternal, Newborn, Child Health (India)
+
+*Extends Source 5 (RMNCH+A) with additional India-specific maternal/child documents.*
+
+### M1: CHO / Mid-Level Provider Booklet — Maternal Health
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | NHM / MoHFW (India) |
+| **Scope** | Danger signs in pregnancy and postpartum; referral criteria; stabilisation protocols |
+| **VaidyaVaani Use** | Pregnancy call flows: classify as routine vs danger; safe advice vs "go now / call 108" |
+| **Format** | PDF; chunk "danger signs" and "referral criteria" |
+| **URL** | https://nhm.gov.in/New_Update-2022-23/MH/GUIDELINES-%20MH/CHO_Booklet_%20Maternal_Health-English.pdf |
+
+### M2: Guidelines for Antenatal Care & Skilled Attendance at Birth
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | MoHFW (India) |
+| **Scope** | Antenatal visit schedule, risk factors, when to refer, intrapartum care |
+| **VaidyaVaani Use** | Identify high-risk pregnancy calls; support messages like "you must see a skilled provider within 24h/now" |
+| **Format** | PDF; keep text portions on danger signs and referral |
+| **URL** | https://nhm.gov.in/images/pdf/programmes/maternal-health/guidelines/sba_guidelines_for_skilled_attendance_at_birth.pdf |
+
+### M3: Guidelines for Obstetric HDU and ICU
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | MoHFW (India) |
+| **Scope** | When HDU/ICU needed; types of obstetric emergencies; where to manage which cases |
+| **VaidyaVaani Use** | Justify escalation of certain symptom combinations as "critical"; helps choose "PHC vs DH" in advice |
+| **Format** | PDF; not for RAG text but for internal logic and pitch |
+| **URL** | https://nhm.gov.in/images/pdf/programmes/maternal-health/guidelines/Guidelines_for_Obstetric_HDU_and_ICU.pdf |
+
+### M5: Home Based Newborn/Maternal Care & ASHA Modules
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | NHM (India) |
+| **Scope** | ASHA instructions on household-level maternal and newborn care, counselling, red flags |
+| **VaidyaVaani Use** | Calibrates when system should alert ASHA; what ASHA is expected to do on ground |
+| **Format** | PDFs; chunk high-level danger signs + ASHA action steps |
+
+---
+
+## Category 3: Telemedicine & Medico-Legal / AI Boundaries (India)
+
+*NEW category — not covered in the 13 core sources above.*
+
+### L1: Telemedicine Practice Guidelines, 2020
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | MoHFW + NITI Aayog (India) |
+| **Scope** | Legal framework for teleconsultation: modes, consent, responsibilities, emergencies |
+| **VaidyaVaani Use** | Define boundaries: VaidyaVaani triages & navigates; RMPs diagnose & prescribe; emergency flows must refer to in-person care |
+| **Format** | Official PDF; use key clauses in system prompt + legal slides |
+| **URL** | https://pmc.ncbi.nlm.nih.gov/articles/PMC8106416/ |
+| **Hackathon Priority** | 🔴 HIGH — judges will ask "is this legal?" This is your answer. |
+
+### L2: Modification in Medicine List in Telemedicine Practice Guidelines
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | MoHFW |
+| **Scope** | Which medicines can be prescribed remotely and in what context |
+| **VaidyaVaani Use** | Ensure any medicine suggestions are within allowed lists and always RMP-mediated |
+| **Format** | PDF; not for RAG to patients; for compliance |
+| **URL** | https://covid19dashboard.mohfw.gov.in/pdf/ModificationinMedicineListinTelemedicinePracticeGuidelines.pdf |
+
+### L5: India AI / IndiaAI Governance & Ethical AI Guidelines
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | MeitY / IndiaAI |
+| **Scope** | Principles for responsible AI, especially in health & public services |
+| **VaidyaVaani Use** | Back AI-governance pitch: explain guardrails, auditability, fairness |
+| **Format** | Policy docs; cited but not RAG sources |
+| **URL** | https://static.pib.gov.in/WriteReadData/specificdocs/documents/2025/nov/doc2025115685601.pdf |
+
+---
+
+## Category 4: Digital Health Standards & Interoperability (ABDM, FHIR, Codes)
+
+*Extends Source 12 (ABDM/ICD-10/LOINC) with deeper implementation details.*
+
+### D1: ABDM Health Information Types & FHIR-Based Framework
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | NHA / ABDM (India) |
+| **Scope** | Defines HI types; FHIR R4 clinical profiles; 3 data formats (PDF, FHIR+free text, full FHIR) |
+| **VaidyaVaani Use** | Design call summaries as FHIR Bundles; ensure compatibility with HIP/HIU, eSanjeevani |
+| **URL** | https://www.linkedin.com/pulse/exploring-health-information-types-abdm-ayushman-bharat-digital |
+
+### D2: ABHA Number, Consent Manager, HIU/HIP Specs
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | NHA / ABDM |
+| **Scope** | ABHA ID, consent flow for sharing health data, gateway behaviour |
+| **VaidyaVaani Use** | Roadmap: map phone number ↔ ABHA; send summaries as authorised HI to hospitals |
+| **URL** | https://docs.coronasafe.network/abdm-documentation/overview-of-fhr-framework/apis-and-standards |
+
+### D3: SNOMED-CT Usage & FHIR Bindings
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | SNOMED International + NRCeS India |
+| **Scope** | How to code symptoms, problems, diagnoses using SNOMED within FHIR |
+| **VaidyaVaani Use** | Internally code conditions and symptoms in triage outputs for interoperability |
+| **URL** | https://docs.snomed.org/implementation-guides/loinc-implementation-guide/information-models-and-terminology-binding/5.3-hl7-fhir-and-laboratory-data |
+
+---
+
+## Category 5: ASHA, PHC, and Primary Care Protocols (India)
+
+*Extends Source 6 (IPHS) with ASHA-specific and primary care documents.*
+
+### C1: ASHA Training Modules (Series 1-7)
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | NHM (India) |
+| **Scope** | Maternal / newborn care, common illnesses, TB, NCDs, health promotion |
+| **VaidyaVaani Use** | Defines what ASHA is trained to do and when she is involved; design "ASHA Escalation Agent" |
+
+### C2: Home Based Newborn Care (HBNC) & Home Based Care for Young Child (HBYC)
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | NHM |
+| **Scope** | How ASHAs and ANMs monitor and manage newborns/young children |
+| **VaidyaVaani Use** | When to send ASHA vs 108 vs PHC; follow-up flows |
+
+---
+
+## Category 6: Disease Surveillance & Outbreak Detection
+
+*NEW category — supports the Disease Surveillance Agent feature.*
+
+### S1: IDSP Operational Guidelines (Integrated Disease Surveillance Programme)
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | MoHFW (India) |
+| **Scope** | Priority disease list; case definitions; alert thresholds; reporting workflows |
+| **VaidyaVaani Use** | Map "cluster detection" to IDSP thresholds; decide when to alert DHO |
+| **Format** | PDF; use definitions & thresholds as rules in Lambda |
+| **Hackathon Priority** | 🟡 MEDIUM — mention in methodology, implement thresholds in surveillance agent |
+
+### S2: Programme-Specific Guidelines (NVBDCP, NTEP)
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | MoHFW / Programme Divisions |
+| **Scope** | Case definitions, outbreak criteria for malaria/dengue (NVBDCP), TB (NTEP) |
+| **VaidyaVaani Use** | Enrich outbreak rules (fevers with rash vs fevers with bleeding); adjust heatmap alerts |
+
+---
+
+## Category 7: Chronic Disease & Long-Term Follow-Up (NCDs)
+
+*NEW category — supports the Chronic Care Companion Agent feature.*
+
+### N1: NPCDCS Operational Guidelines (NCDs)
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | MoHFW (India) |
+| **Scope** | Screening, follow-up intervals, counselling, referral for diabetes, HTN, CVD, stroke |
+| **VaidyaVaani Use** | Shape weekly check-in questions and escalation thresholds for chronic-care companion |
+| **Format** | PDF; chunk sections on follow-up and high-risk symptoms |
+| **Hackathon Priority** | 🟡 MEDIUM — use for chronic care demo script |
+
+### N2: NTEP Guidelines (National TB Elimination Programme)
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | MoHFW / Central TB Division |
+| **Scope** | TB diagnosis, treatment, adherence monitoring, follow-up |
+| **VaidyaVaani Use** | TB patients in chronic care flows; design adherence reminders and warning signs |
+
+---
+
+## Category 8: Privacy, Security, Accessibility
+
+*Extends existing DPDP Act coverage with additional governance sources.*
+
+### G2: India AI / IndiaAI Governance Guidelines
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | MeitY / IndiaAI |
+| **Scope** | Responsible AI principles; risk categories |
+| **VaidyaVaani Use** | Justify guardrails, explainability, auditability of AI decisions |
+| **URL** | https://static.pib.gov.in/WriteReadData/specificdocs/documents/2025/nov/doc2025115685601.pdf |
+
+### G3: Rights of Persons with Disabilities Act + WCAG 2.1
+
+| Detail | Info |
+|--------|------|
+| **Issuing Body** | Government of India + W3C |
+| **Scope** | Accessibility standards |
+| **VaidyaVaani Use** | Support claim that voice interface is accessible; design of admin dashboards |
+
+---
+
+## Category 9: Data Format Standards
+
+### Source Guidelines Processing
+
+| Aspect | Standard | Rationale |
+|--------|----------|-----------|
+| **Ingestion Format** | PDF → extracted plain text / Markdown | Easy to ingest + chunk; retains headings and structure for RAG |
+| **KB Storage** | Chunked text (500-1500 tokens) with metadata | Best for Nova/Claude + RAG; metadata for age group, emergency vs chronic, source authority |
+| **Clinical Event Storage** | FHIR R4 JSON (ABDM profiles) | Directly compatible with ABDM; future proof |
+| **Coding Inside FHIR** | SNOMED-CT, ICD-10/11, LOINC | Standardised semantics; plug-and-play with existing health IT |
+
+---
+
+## Extended Catalog: Implementation Roadmap
+
+### For Hackathon (Minimum Viable KB)
+
+| Priority | Sources | Purpose |
+|----------|---------|---------|
+| 🔴 P0 | E-series (E1-E7) | Emergency triage & first aid |
+| 🔴 P0 | M-series (M1-M2) | Maternal, newborn, child health |
+| 🔴 P0 | L1 (Telemedicine Guidelines) | Legal compliance — "is this legal?" answer |
+| 🔴 P0 | E7 (NDMA First Aid Manual) | Verbatim first-aid scripts |
+| 🟡 P1 | D1 (ABDM/FHIR basics) | Interoperability pitch |
+
+### For Production (Complete KB)
+
+| Priority | Sources | Purpose |
+|----------|---------|---------|
+| 🟡 P1 | C-series (ASHA/IPHS) | ASHA escalation agent, primary care protocols |
+| 🟡 P1 | S-series (IDSP surveillance) | Disease surveillance thresholds |
+| 🟡 P1 | N-series (NPCDCS, NTEP) | Chronic care companion |
+| 🟢 P2 | D2-D5 (ABDM deep integration) | Full FHIR/ABHA/SNOMED integration |
+| 🟢 P2 | L-series (full legal framework) | Complete governance & compliance |
+| 🟢 P2 | G-series (privacy, accessibility) | Enterprise readiness |
+
+---
+
+## Document Maintenance
+
+- **Review Cycle:** Quarterly or when new guidelines are published by MoHFW/WHO
+- **Key Watch:** ICMR STW updates, ABDM spec changes, new NHM operational guidelines
+
+---
+
+## Notes on Extended Catalog
+
+1. All PDF sources should be converted to plain text/Markdown for RAG ingestion
+2. Chunk documents around logical sections (danger signs, referral criteria, etc.)
+3. Add metadata tags for filtering: `age_group`, `emergency_level`, `source_authority`, `india_specific`
+4. Maintain source attribution for all RAG outputs
+5. The E-series, M-series, and L1 are the highest priority additions beyond the 13 core sources
