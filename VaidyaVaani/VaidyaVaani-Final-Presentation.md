@@ -1,12 +1,8 @@
-===============================================
 VAIDYAVAANI (वैद्यवाणी) - FINAL PRESENTATION
-===============================================
 AI-Powered IVR Health Assistant for Bharat
 Complete Team Discussion Document
 
-===============================================
 1. PROBLEM STATEMENT (ABSTRACT)
-===============================================
 
 THE CORE PROBLEM:
 900 million rural Indians face a healthcare crisis:
@@ -43,9 +39,7 @@ ANY phone (feature phone, smartphone, landline) to get instant health
 triage, symptom assessment, and emergency dispatch — in their native 
 language, 24/7, without internet or literacy.
 
-===============================================
 2. EXISTING SOLUTIONS (COMPETITIVE LANDSCAPE)
-===============================================
 
 We analyzed 14+ existing solutions across 4 categories:
 
@@ -136,9 +130,7 @@ NO existing deployed solution offers ALL of:
 - Multiple Indian languages
 - General health (not limited to one condition/gender)
 
-===============================================
 3. HOW NOVEL ARE WE? (NOVELTY SCORE: 9/10)
-===============================================
 
 THE CRITICAL GAP WE FILL:
 
@@ -203,9 +195,7 @@ assistants (but for agriculture), VaidyaVaani fills the critical gap:
 24/7 AI health triage, emergency dispatch, and care navigation for ALL 
 Indians, regardless of smartphone ownership or internet access."
 
-===============================================
 4. IMPROVEMENTS & OPTIMIZATIONS
-===============================================
 
 CURRENT ARCHITECTURE (₹67/call):
 - Amazon Connect (IVR): ₹32
@@ -272,9 +262,7 @@ RECOMMENDATION:
 - Production: Option C (₹32/call) - Best balance of cost & reliability
 - Government Pitch: Show range ₹24-42/call (95-97% cheaper than NHS 111)
 
-===============================================
 5. SCALABILITY
-===============================================
 
 COST AT DIFFERENT SCALES:
 
@@ -338,9 +326,7 @@ Phase 3: National Scale (24 months)
 TOTAL 3-YEAR INVESTMENT: ₹63.3 crore
 (Less than half of Bharat Vistaar's ₹150 crore)
 
-===============================================
 6. TARGET AUDIENCE & BUSINESS MODEL
-===============================================
 
 PRIMARY TARGET AUDIENCE:
 ────────────────────────
@@ -458,9 +444,7 @@ PITCH TO GOVERNMENT:
 can provide 24/7 AI health triage to every Indian with a phone — 
 including the 350 million with only feature phones."
 
-===============================================
 7. THE PUNCH LINE (OUR CAPABILITY)
-===============================================
 
 COMPARED TO NHS 111 (UK's Gold Standard):
 ──────────────────────────────────────────
@@ -625,12 +609,9 @@ AUDIENCE REACTION: The AI just did triage, gave treatment advice,
 offered to dispatch ambulance, scheduled a follow-up call, and sent 
 SMS instructions — all through a ₹1,500 feature phone with no internet.
 
-===============================================
 
 
-===============================================
 8. NEW FEATURES & ENHANCEMENTS (GAP ANALYSIS)
-===============================================
 
 Based on comprehensive competitive analysis and gap identification, 
 VaidyaVaani includes these critical enhancements:
@@ -872,9 +853,7 @@ WHY IT'S A "FREE CREDIBILITY BOOST":
 - Judges will think: "If Nilekani says this is the future, and these guys are building it..."
 
 
-===============================================
 9. COMPLETE FEATURE MATRIX (UPDATED)
-===============================================
 
 | Feature Category | Feature | Status | Build Time |
 |------------------|---------|--------|------------|
@@ -901,9 +880,7 @@ AVAILABLE: 4 people × 12 days = 48 person-days
 BUFFER: 34.5 person-days (comfortable margin)
 
 
-===============================================
 10. REVISED 12-DAY BUILD PLAN
-===============================================
 
 PERSON 1 (Professional - Backend Lead):
 Day 1-2:  Amazon Connect + Nova Sonic setup
@@ -957,4 +934,3 @@ Priority order (cut from bottom first):
 2. SHOULD HAVE: WhatsApp photo path, multi-language, follow-up
 3. NICE TO HAVE: ASHA integration, disease surveillance, chronic care
 
-===============================================

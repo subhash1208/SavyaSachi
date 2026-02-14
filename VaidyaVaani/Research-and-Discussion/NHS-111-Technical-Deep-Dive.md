@@ -472,7 +472,7 @@ VAIDYAVAANI ARCHITECTURE (INSPIRED BY NHS 111)
 │                  AGENTIC ACTIONS                        │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │
 │  │ Emergency    │  │     SMS      │  │  Follow-up   │ │
-│  │ Dispatch     │  │ Instructions │  │  Scheduler   │ │
+│  │ Di │ Instructions │  │  Scheduler   │ │
 │  │ (108/112)    │  │  (SNS)       │  │ (EventBridge)│ │
 │  └──────────────┘  └──────────────┘  └──────────────┘ │
 └─────────────────────────────────────────────────────────┘
