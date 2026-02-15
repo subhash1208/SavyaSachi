@@ -672,6 +672,794 @@ VaidyaVaani costs less than 2 cups of chai.
 
 ---
 
+## 🚀 PROTOTYPE DEVELOPMENT PLAN (Post-Shortlist)
+
+### 📅 Timeline Reality Check
+
+**TODAY (Feb 15, 2026):** Submission deadline - Documentation complete ✅
+**Feb 25, 2026:** Shortlist announcement + AWS credits provided
+**Feb 25 - Mar 17, 2026:** 20 days for prototype development (if shortlisted)
+
+**Team:** 4 developers
+**Total Capacity:** 80 person-days
+**Strategy:** Build in tiers - each tier is a working demo
+
+---
+
+## 🎯 3-TIER PROTOTYPE STRATEGY
+
+### Philosophy: "A working Tier 1 demo beats a broken Tier 3 attempt"
+
+Each tier builds on the previous one. Each tier is independently demo-able. If time runs out, we ship whatever tier is complete.
+
+---
+
+## TIER 1: CORE MVP (Minimum Viable Prototype)
+
+**Goal:** Prove the concept works - IVR + AI triage + One agentic action
+**Duration:** 7 days (Days 1-7 after shortlist)
+**Team Effort:** 28 person-days
+**Demo-able:** ✅ YES - Can show judges a working call
+**Risk Level:** 🟢 LOW - Straightforward implementation
+
+### What Gets Built:
+
+#### 1. Basic IVR Flow (2 days)
+**Owner:** Developer 1 (Backend Lead)
+- Amazon Connect setup with toll-free number
+- Language selection menu (Hindi/English only)
+- Call recording enabled
+- Basic routing logic (Lambda function)
+- Error handling and fallback flows
+
+**Deliverables:**
+- Working phone number that answers calls
+- Language selection working
+- Call logs in CloudWatch
+
+#### 2. AI Triage Engine (3 days)
+**Owner:** Developer 1 + Developer 2 (Knowledge Base)
+- Amazon Bedrock integration (Claude 3.5 Sonnet)
+- Simple knowledge base (5-10 ICMR STWs)
+- Basic symptom assessment for 3 conditions:
+  - Child fever/dehydration (WHO IMCI protocol)
+  - Chest pain (ICMR cardiac STW)
+  - Snakebite (WHO + India NAPSE 2024)
+- Intent classification (Emergency vs Non-Emergency)
+- Conversation flow management
+
+**Deliverables:**
+- AI responds to symptom descriptions
+- Asks 3-4 follow-up questions
+- Provides basic triage advice
+- Routes to emergency vs general path
+
+#### 3. ONE Agentic Action - SMS (1 day)
+**Owner:** Developer 3 (Integration Lead)
+- Amazon SNS integration
+- SMS template creation (Hindi + English)
+- Send SMS with treatment instructions
+- Proves "AI takes action, not just advice"
+
+**Deliverables:**
+- SMS arrives during call (the "magic moment")
+- ORS preparation instructions for dehydration
+- Emergency contact SMS for critical cases
+
+#### 4. Basic Monitoring (1 day)
+**Owner:** Developer 3 (Integration Lead)
+- CloudWatch logs and metrics
+- Call recording storage in S3
+- Basic error handling
+- DynamoDB table for call logs
+
+**Deliverables:**
+- Can review call recordings
+- Can see call logs and errors
+- Basic dashboard in CloudWatch
+
+### TIER 1 Demo Flow:
+```
+User calls toll-free number
+→ IVR: "Namaste! VaidyaVaani mein aapka swagat hai. Hindi ke liye 1 dabayein"
+→ User presses 1
+→ IVR: "Apni taklif batayein"
+→ User: "Mera bachcha 2 saal ka hai, usse tez bukhar hai aur ulti ho rahi hai"
+→ AI asks: "Bachche ne aakhiri baar paani piya kab?"
+→ AI asks: "Uski aankhen dhasi hui hain?"
+→ AI asks: "Ro raha hai toh aansoo aa rahe hain?"
+→ AI: "Yeh dehydration ke lakshan hain. ORS banao - ek chammach namak..."
+→ SMS arrives on phone with ORS instructions
+→ AI: "Maine aapke phone par SMS bhej diya hai"
+```
+
+**Value Delivered:** ✅ Proves core concept works
+**Risk Mitigation:** If we only build this, we still have a demo
+**Judge Impact:** "It works! AI + IVR + Agentic action demonstrated"
+
+---
+
+## TIER 2: ENHANCED PROTOTYPE (Add Critical Features)
+
+**Goal:** Add emergency dispatch + Nova Sonic + Follow-up
+**Duration:** 7 days (Days 8-14 after shortlist)
+**Team Effort:** 28 person-days
+**Demo-able:** ✅ YES - Professional-grade demo
+**Risk Level:** 🟡 MEDIUM - More complex integrations
+
+### What Gets Added:
+
+#### 1. Amazon Nova 2 Sonic Integration (2 days)
+**Owner:** Developer 1 (Backend Lead)
+- Replace basic Transcribe+Polly with Nova Sonic
+- Configure Arjun/Kiara voices (Indian accent)
+- Speech-to-speech for Hindi + English
+- Measure and optimize latency
+- Fallback to Transcribe+Polly if Nova fails
+
+**Deliverables:**
+- Native Indian accent voices working
+- Faster response times (<1 second for Tier 1 languages)
+- Cost reduction (37% savings)
+- Hinglish code-switching working
+
+#### 2. Emergency Dispatch System (3 days)
+**Owner:** Developer 1 + Developer 2
+- Emergency KB (5 deterministic scripts):
+  - Heart attack (ABCDE + ICD-10: I21.9)
+  - Stroke (ABCDE + ICD-10: I64)
+  - Snakebite (India NAPSE 2024 + ICD-10: T63.0)
+  - Severe bleeding (ABCDE + ICD-10: R58)
+  - Pregnancy emergency (ABCDE + ICD-10: O14.9)
+- ABCDE assessment framework implementation
+- **Simulated 108 dispatch** (SMS to demo phone showing dispatch confirmation)
+- ICD-10 tagging for all conditions
+- Emergency vs non-emergency routing logic
+
+**Deliverables:**
+- Emergency scripts following WHO ABCDE framework
+- Keyword detection for emergencies
+- 108 dispatch simulation working
+- ICD-10 codes logged in DynamoDB
+
+#### 3. Follow-up Scheduler (1 day)
+**Owner:** Developer 3 (Integration Lead)
+- EventBridge scheduled events
+- DynamoDB to track follow-ups
+- Callback system (calls patient back after X hours)
+- Follow-up conversation flow
+
+**Deliverables:**
+- Can schedule follow-up call for 2 hours later
+- Follow-up call actually happens
+- System checks if patient improved
+- Escalates if condition worsened
+
+#### 4. Expanded Knowledge Base (1 day)
+**Owner:** Developer 2 (Knowledge Base)
+- Add 15-20 more ICMR STWs
+- WHO IMCI for pediatric cases (complete)
+- WHO snakebite protocols (complete)
+- India NAPSE 2024 snakebite protocol
+- Symptom-disease mapping CSV
+
+**Deliverables:**
+- 20-25 total documents in KB
+- Covers top 10 conditions by prevalence
+- Pediatric, cardiac, snakebite, maternal health
+
+### TIER 2 Demo Flows:
+
+**Demo 1 (Emergency - Heart Attack):**
+```
+User calls → "Seene mein dard hai, saans phool rahi hai" (Chest pain, breathless)
+→ AI detects emergency keywords
+→ Routes to Emergency KB
+→ ABCDE Assessment:
+   A: "Kya woh bol pa rahe hain?" → YES
+   B: "Saans tez chal rahi hai?" → YES (labored)
+   C: "Dard haath ya jabde mein ja raha hai?" → YES (radiating)
+   D: "Kya woh hosh mein hain?" → YES
+   E: "Paseena aa raha hai?" → YES
+→ AI: "Yeh heart attack ke lakshan hain. 108 ambulance abhi bhej rahi hoon"
+→ SMS to demo phone: "108 DISPATCHED - Cardiac Emergency - Location: [GPS]"
+→ SMS to family: "Emergency: Heart attack suspected, ambulance dispatched"
+→ AI: "Aspirin hai toh ek goli chabayein, lait jayein, hilna mat"
+→ Logs: ICD-10 I21.9, Severity: CRITICAL, Dispatch: 108
+```
+
+**Demo 2 (Non-Emergency - Child Fever):**
+```
+User calls → Child fever case (same as Tier 1)
+→ AI triages → ORS advice
+→ SMS sent with instructions
+→ AI: "Main 2 ghante baad aapko call karungi check karne ke liye"
+→ Shows EventBridge scheduled event in dashboard
+→ (Can fast-forward time to show follow-up call happening)
+```
+
+**Value Delivered:** ✅ Professional demo with emergency + follow-up
+**Risk Mitigation:** This is competition-winning quality
+**Judge Impact:** "This is production-ready! Emergency dispatch + follow-up care"
+
+---
+
+## TIER 3: ADVANCED FEATURES (Differentiation)
+
+**Goal:** Add features that make judges say "WOW"
+**Duration:** 6 days (Days 15-20 after shortlist)
+**Team Effort:** 24 person-days
+**Demo-able:** ✅ YES - Grand prize level
+**Risk Level:** 🔴 HIGH - Complex features, may not complete
+
+### What Gets Added:
+
+#### 1. Disease Surveillance Dashboard (2 days)
+**Owner:** Developer 3 + Developer 4
+- DynamoDB aggregation by location + symptom + time
+- Simple web dashboard (React + AWS Amplify)
+- Heatmap showing call clusters (using AWS Location Service or QuickSight)
+- Auto-alert when threshold crossed (e.g., 10 fever calls from same area in 3 days)
+- SMS to District Health Officer simulation
+
+**Deliverables:**
+- Dashboard showing call patterns
+- Heatmap visualization
+- Auto-alert triggered when outbreak detected
+- "23 fever calls from Khedi village in 3 days" demo
+
+#### 2. WhatsApp Photo Path (2 days)
+**Owner:** Developer 1 + Developer 3
+- WhatsApp Business API integration (start approval process Day 1!)
+- S3 image storage
+- Claude Vision analysis (Bedrock multimodal)
+- Callback with diagnosis
+- Demo with wound/rash photo
+
+**Deliverables:**
+- User can send photo via WhatsApp
+- Claude Vision analyzes image
+- AI calls back with visual diagnosis
+- Demo: wound infection (cellulitis) detection
+
+#### 3. ASHA Worker Integration (1 day)
+**Owner:** Developer 2 + Developer 3
+- Simple ASHA database (DynamoDB with location data)
+- Nearest ASHA worker calculation (by PIN code or GPS)
+- SMS alert to nearest ASHA for critical cases
+- Demo with simulated ASHA phone receiving alert
+
+**Deliverables:**
+- ASHA database with 10-20 demo entries
+- Nearest ASHA calculation working
+- SMS sent to ASHA with patient summary
+- "ASHA Alert: Critical case in your area" demo
+
+#### 4. Chronic Care Enrollment (1 day)
+**Owner:** Developer 2
+- Patient enrollment during call (diabetes, hypertension, TB)
+- Weekly check-in scheduling (EventBridge)
+- Chronic care conversation scripts
+- Demo showing scheduled chronic care calls
+
+**Deliverables:**
+- Patient can enroll in chronic care program
+- Weekly check-in scheduled
+- Demo: "I'll call you every Monday at 9 AM to check your sugar levels"
+
+### TIER 3 Demo Flows:
+
+**Demo 1 (Multimodal - WhatsApp Photo):**
+```
+User calls → "Mere pair mein ghav hai, sujan hai" (Wound on leg, swelling)
+→ AI: "Kya aapke paas WhatsApp hai?"
+→ User: "Haan"
+→ AI: "Is number par photo bhejiye: +91-XXXXX-XXXXX"
+→ User sends photo via WhatsApp
+→ S3 stores image → Claude Vision analyzes
+→ AI calls back: "Yeh cellulitis hai - bacterial infection. Hospital jaana padega"
+→ Provides nearest hospital with wound care facility
+```
+
+**Demo 2 (Disease Surveillance):**
+```
+Show dashboard on screen:
+→ Heatmap with 15 fever calls from Khedi village, MP in last 3 days
+→ System detects cluster (threshold: 10 calls in 3 days)
+→ Auto-alert triggered
+→ SMS sent to District Health Officer: "Outbreak Alert: 15 fever cases in Khedi village"
+→ Narrator: "Individual calls become public health intelligence"
+```
+
+**Demo 3 (ASHA Integration):**
+```
+Emergency case (pregnancy complication)
+→ 108 dispatched
+→ PLUS: System finds nearest ASHA worker (2 km away)
+→ SMS to ASHA: "Critical: Pregnant woman, bleeding, Village: Khedi, Contact: 98XXX"
+→ Shows integration with existing health system
+→ Narrator: "VaidyaVaani doesn't replace the health system - it supercharges it"
+```
+
+**Value Delivered:** ✅ Grand prize differentiation
+**Risk Mitigation:** Even without this, Tier 2 is strong
+**Judge Impact:** "This is beyond a prototype - it's a public health platform!"
+
+---
+
+## 👥 DETAILED TEAM ALLOCATION
+
+### Developer 1: Backend Lead (IVR + AI Core)
+
+**Skills Required:** AWS Connect, Bedrock, Lambda, Python/Node.js
+
+**Tier 1 (Days 1-7):**
+- Day 1: AWS account setup, Connect instance creation
+- Day 2: IVR flow design, language selection, basic routing
+- Day 3: Bedrock integration, Claude 3.5 Sonnet setup
+- Day 4: Knowledge base creation, RAG implementation
+- Day 5: Conversation flow logic, intent classification
+- Day 6: SNS integration for SMS
+- Day 7: Testing and bug fixes
+
+**Tier 2 (Days 8-14):**
+- Days 8-9: Nova Sonic integration, voice optimization
+- Days 10-11: Emergency KB setup, ABCDE scripts
+- Day 12: Emergency routing logic, 108 dispatch simulation
+- Day 13: Follow-up scheduler with EventBridge
+- Day 14: Integration testing
+
+**Tier 3 (Days 15-20):**
+- Days 15-16: WhatsApp Business API integration
+- Day 17: Claude Vision for photo analysis
+- Days 18-20: End-to-end testing, performance optimization
+
+**Total Effort:** 20 days
+
+---
+
+### Developer 2: Knowledge Base + Content
+
+**Skills Required:** Medical content, data formatting, documentation
+
+**Tier 1 (Days 1-7):**
+- Day 1: Download ICMR STWs, WHO IMAI/IMCI documents
+- Days 2-3: Create 5-10 core documents (fever, dehydration, chest pain, snakebite)
+- Day 4: Format for Bedrock KB (Markdown, proper chunking)
+- Days 5-6: Test triage flows, refine questions
+- Day 7: Documentation and content review
+
+**Tier 2 (Days 8-14):**
+- Days 8-10: Create 5 emergency scripts (ABCDE format, ICD-10 tags)
+- Day 11: Expand KB to 20-30 documents
+- Days 12-13: Hindi translations for key scripts
+- Day 14: Content testing and refinement
+
+**Tier 3 (Days 15-20):**
+- Days 15-16: Chronic care scripts (diabetes, hypertension, TB)
+- Day 17: ASHA alert templates and workflows
+- Days 18-20: Final KB polish, documentation
+
+**Total Effort:** 20 days
+
+---
+
+### Developer 3: Integration + Actions
+
+**Skills Required:** AWS services integration, APIs, DynamoDB
+
+**Tier 1 (Days 1-7):**
+- Day 1: AWS account setup, IAM roles, permissions
+- Day 2: S3 buckets for recordings, DynamoDB tables
+- Day 3: CloudWatch setup, logging infrastructure
+- Day 4: SNS configuration for SMS
+- Days 5-7: Testing infrastructure, error handling
+
+**Tier 2 (Days 8-14):**
+- Days 8-9: Emergency dispatch logic (Lambda functions)
+- Day 10: 108 dispatch simulation (SMS to demo phone)
+- Days 11-12: EventBridge for follow-up scheduling
+- Day 13: ICD-10 tagging system in DynamoDB
+- Day 14: Integration testing
+
+**Tier 3 (Days 15-20):**
+- Days 15-16: Disease surveillance aggregation (DynamoDB queries)
+- Day 17: ASHA database + nearest worker calculation
+- Days 18-20: Dashboard backend APIs, final integration
+
+**Total Effort:** 20 days
+
+---
+
+### Developer 4: Frontend + Demo + QA
+
+**Skills Required:** React, testing, video production, documentation
+
+**Tier 1 (Days 1-7):**
+- Days 1-2: GitHub repo setup, README updates
+- Days 3-5: Manual testing of IVR flows
+- Days 6-7: Bug tracking, test case documentation
+
+**Tier 2 (Days 8-14):**
+- Days 8-9: Demo scenario scripts (emergency + non-emergency)
+- Days 10-11: Video recording setup, test recordings
+- Days 12-14: Demo rehearsal, script refinement
+
+**Tier 3 (Days 15-20):**
+- Days 15-17: Surveillance dashboard UI (React + QuickSight)
+- Days 18-19: Final demo videos (3-5 scenarios)
+- Day 20: Presentation polish, submission prep
+
+**Total Effort:** 20 days
+
+---
+
+## 🎯 MILESTONE CHECKPOINTS
+
+### Checkpoint 1: End of Day 7 (Tier 1 Complete)
+
+**Demo Readiness Check:**
+- [ ] Can call the toll-free number
+- [ ] Language selection works
+- [ ] AI responds to symptoms
+- [ ] SMS arrives during call
+- [ ] 3 demo scenarios work (fever, chest pain, snakebite)
+
+**Decision Point:**
+- ✅ If working → Proceed to Tier 2 with confidence
+- ⚠️ If partially working → Debug for 1-2 more days, then proceed
+- ❌ If blocked → Escalate, get help, may need to simplify Tier 2
+
+**Team Meeting:** Review progress, adjust Tier 2 plan if needed
+
+---
+
+### Checkpoint 2: End of Day 14 (Tier 2 Complete)
+
+**Demo Readiness Check:**
+- [ ] Nova Sonic working with Indian voices
+- [ ] Emergency dispatch simulation works
+- [ ] Follow-up scheduling works
+- [ ] 5 demo scenarios work (emergency + non-emergency)
+- [ ] Latency is acceptable (<3 seconds)
+
+**Decision Point:**
+- ✅ If solid → Proceed to Tier 3 with confidence
+- ⚠️ If shaky → Polish Tier 2 for 2 more days, skip Tier 3
+- ❌ If broken → Fix Tier 2, definitely skip Tier 3
+
+**Team Meeting:** Decide if Tier 3 is feasible, prioritize features
+
+---
+
+### Checkpoint 3: End of Day 20 (Tier 3 Complete or Skipped)
+
+**Final Demo Preparation:**
+- [ ] Record 3-5 demo videos
+- [ ] Prepare live demo script
+- [ ] Test all scenarios multiple times
+- [ ] Backup plans for demo failures
+- [ ] Presentation slides ready
+
+**Submission Readiness:**
+- [ ] All code committed to GitHub
+- [ ] Documentation updated
+- [ ] Demo videos uploaded
+- [ ] Ready for judging
+
+---
+
+## 💰 AWS CREDITS USAGE STRATEGY
+
+### Budget Allocation by Tier
+
+**Tier 1 (Minimal Spend - Days 1-7):**
+- Amazon Connect: ~$50 (testing calls)
+- Bedrock (Claude): ~$50 (KB creation + testing)
+- Lambda: Free tier
+- S3: Free tier
+- DynamoDB: Free tier
+- SNS (SMS): ~$20 (100 test SMS)
+- **Tier 1 Total: ~$120**
+
+**Tier 2 (Moderate Spend - Days 8-14):**
+- Nova Sonic testing: ~$150 (speech-to-speech calls)
+- Expanded KB: ~$100 (more Bedrock usage)
+- More call testing: ~$150 (Connect minutes)
+- EventBridge: Free tier
+- **Tier 2 Total: ~$400**
+
+**Tier 3 (Full Spend - Days 15-20):**
+- WhatsApp Business API: ~$100 (setup + testing)
+- Claude Vision: ~$100 (image analysis)
+- Dashboard hosting: ~$50 (Amplify or EC2)
+- Heavy testing: ~$250 (final integration testing)
+- **Tier 3 Total: ~$500**
+
+**Grand Total: ~$1,020** (well within typical AWS credits for hackathons: $1,000-$2,000)
+
+**Buffer:** $500-$1,000 remaining for unexpected costs or extended testing
+
+---
+
+## 🚨 RISK MITIGATION STRATEGIES
+
+### Risk 1: AWS Credits Delayed After Shortlist
+
+**Probability:** MEDIUM
+**Impact:** HIGH (can't start development)
+
+**Mitigation:**
+- Start with personal AWS account free tier on Day 1
+- Use free tier services where possible (Lambda, DynamoDB, S3)
+- Minimize Connect/Bedrock usage until credits arrive
+- Have team member with AWS credits ready as backup
+
+**Fallback:**
+- Build Tier 1 on free tier (~$50 out of pocket)
+- Wait for credits before starting Tier 2
+
+---
+
+### Risk 2: Nova Sonic Issues or Limitations
+
+**Probability:** MEDIUM
+**Impact:** MEDIUM (affects cost savings story)
+
+**Mitigation:**
+- Keep Transcribe+Polly as fallback architecture
+- Test Nova Sonic early (Day 8-9)
+- Document both architectures in presentation
+
+**Fallback:**
+- Demo with Transcribe+Polly
+- Explain: "We're using fallback for stability, Nova Sonic is production roadmap"
+- Still have working demo, just different cost structure
+
+---
+
+### Risk 3: WhatsApp Business API Approval Delays
+
+**Probability:** HIGH (can take 1-2 weeks)
+**Impact:** MEDIUM (affects Tier 3 multimodal demo)
+
+**Mitigation:**
+- Start approval process on Day 1 (even before shortlist)
+- Have backup: Twilio WhatsApp sandbox (instant approval)
+- Prepare simulated demo with screenshots if needed
+
+**Fallback:**
+- Demo with simulated WhatsApp (screenshots + narration)
+- Explain: "WhatsApp integration is ready, pending API approval"
+- Still shows technical capability
+
+---
+
+### Risk 4: Team Member Unavailable or Drops Out
+
+**Probability:** LOW-MEDIUM
+**Impact:** HIGH (reduces capacity by 25%)
+
+**Mitigation:**
+- Each tier is independently demo-able
+- Cross-train team members on critical components
+- Document everything in GitHub
+- Have backup team member identified
+
+**Fallback:**
+- Ship whatever tier is complete
+- Reduce scope (skip Tier 3, polish Tier 2)
+- Remaining 3 members work extra hours if needed
+
+---
+
+### Risk 5: Technical Blocker (Service Doesn't Work as Expected)
+
+**Probability:** MEDIUM
+**Impact:** VARIES (depends on which service)
+
+**Mitigation:**
+- Test critical services early (Connect, Bedrock, Nova Sonic)
+- Have alternative architectures documented
+- Budget 2-3 days of buffer time
+- Engage AWS support if needed (hackathon support)
+
+**Fallback:**
+- Simplify architecture (e.g., skip Nova Sonic, use Transcribe+Polly)
+- Focus on working demo over perfect architecture
+- Document issues and workarounds
+
+---
+
+### Risk 6: Demo Fails During Judging
+
+**Probability:** MEDIUM
+**Impact:** CRITICAL (can lose competition)
+
+**Mitigation:**
+- Record backup demo videos (3-5 scenarios)
+- Test demo flow 10+ times before judging
+- Have backup phone numbers ready
+- Prepare for "what if" scenarios
+
+**Fallback:**
+- Play recorded demo video
+- Walk through architecture with slides
+- Show code and logs as proof of implementation
+- Explain technical issues honestly
+
+---
+
+## 📊 FEATURE PRIORITY MATRIX
+
+### MUST HAVE (Tier 1 - Cannot demo without these)
+**Priority:** 🔴 CRITICAL
+**Cut these = No demo**
+
+- ✅ IVR call flow (Amazon Connect)
+- ✅ AI triage (Bedrock + basic KB)
+- ✅ SMS action (proves agentic capability)
+- ✅ Hindi language support
+- ✅ 3 demo scenarios working
+
+**Rationale:** These prove the core concept. Without these, we have nothing to show.
+
+---
+
+### SHOULD HAVE (Tier 2 - Competitive demo)
+**Priority:** 🟡 HIGH
+**Cut these = Weaker but still competitive**
+
+- ⚡ Nova Sonic (cost savings story, Indian voices)
+- ⚡ Emergency dispatch (life-saving story, 108 integration)
+- ⚡ Follow-up scheduler (ongoing care story)
+- ⚡ ABCDE framework (technical credibility)
+- ⚡ ICD-10 tagging (ABDM interoperability story)
+
+**Rationale:** These make us competitive for prizes. Professional-grade demo.
+
+---
+
+### NICE TO HAVE (Tier 3 - Winning demo)
+**Priority:** 🟢 MEDIUM
+**Cut these = Still strong submission**
+
+- 💡 Disease surveillance (public health intelligence story)
+- 💡 WhatsApp photos (multimodal AI story)
+- 💡 ASHA integration (ecosystem integration story)
+- 💡 Chronic care (long-term ROI story)
+
+**Rationale:** These are differentiators for grand prize. But Tier 2 is already strong.
+
+---
+
+## 🎬 DEMO STRATEGY BY TIER
+
+### If Only Tier 1 Complete:
+
+**Pitch:**
+"We've built a working AI health triage system that works on any phone and takes autonomous actions like sending SMS instructions. This proves the concept works."
+
+**Demo:** 
+- 1 live call (child fever → ORS advice → SMS)
+- Show SMS arriving during call
+- Show call logs and recordings
+
+**Judge Questions to Prepare For:**
+- "What about emergencies?" → "Emergency dispatch is our next priority"
+- "What about other languages?" → "We're starting with Hindi, regional languages are roadmap"
+- "How do you prevent hallucinations?" → "We use verified ICMR/WHO protocols in our KB"
+
+---
+
+### If Tier 2 Complete:
+
+**Pitch:**
+"We've built a production-ready AI health system with emergency dispatch, follow-up care, and cost optimization using Nova Sonic. This is ready to deploy."
+
+**Demo:**
+- 2 live calls (emergency + non-emergency)
+- Show emergency dispatch simulation
+- Show follow-up scheduling
+- Show cost comparison (₹42 vs ₹950)
+
+**Judge Questions to Prepare For:**
+- "How do you handle outbreaks?" → "Disease surveillance is our next feature"
+- "What about visual symptoms?" → "WhatsApp photo path is in development"
+- "How do you integrate with existing system?" → "ASHA integration is roadmap"
+
+---
+
+### If Tier 3 Complete:
+
+**Pitch:**
+"We've built India's first AI-powered public health infrastructure that not only triages individual patients but detects disease outbreaks and integrates with the existing health ecosystem. This is transformative."
+
+**Demo:**
+- 3 live calls (emergency + multimodal + chronic care)
+- Show disease surveillance dashboard
+- Show WhatsApp photo analysis
+- Show ASHA integration
+- Show full feature matrix
+
+**Judge Questions to Prepare For:**
+- "When can this be deployed?" → "We're ready for pilot in 1 state"
+- "What's the business model?" → "B2G partnership with National Health Mission"
+- "How do you scale?" → "Serverless architecture, infinite scale"
+
+---
+
+## ✅ SUCCESS CRITERIA BY TIER
+
+### Tier 1 Success Criteria:
+
+- [ ] Can make a call to toll-free number
+- [ ] AI responds to symptom description
+- [ ] AI asks follow-up questions
+- [ ] SMS arrives during call
+- [ ] 3 demo scenarios work reliably
+- [ ] Call recordings stored and accessible
+- [ ] Basic error handling works
+
+**Definition of Success:** "We have a working demo"
+
+---
+
+### Tier 2 Success Criteria:
+
+- [ ] Nova Sonic working with Arjun/Kiara voices
+- [ ] Emergency dispatch simulation works
+- [ ] Follow-up scheduling works
+- [ ] 5 demo scenarios work reliably
+- [ ] Latency is acceptable (<3 seconds)
+- [ ] ABCDE framework implemented
+- [ ] ICD-10 codes logged
+- [ ] Cost savings demonstrated (₹42 vs ₹67)
+
+**Definition of Success:** "We have a competitive demo"
+
+---
+
+### Tier 3 Success Criteria:
+
+- [ ] Disease surveillance dashboard working
+- [ ] WhatsApp photo analysis works
+- [ ] ASHA alert sends successfully
+- [ ] Chronic care enrollment works
+- [ ] 7+ demo scenarios work reliably
+- [ ] Dashboard visualizations impressive
+- [ ] All integrations stable
+- [ ] Performance optimized
+
+**Definition of Success:** "We have a winning demo"
+
+---
+
+## 🎯 THE BOTTOM LINE
+
+**Tier 1 (7 days):** Gets you in the game
+- Working prototype
+- Proves concept
+- Can demo to judges
+
+**Tier 2 (14 days):** Makes you competitive
+- Professional demo
+- Emergency + follow-up
+- Cost savings story
+
+**Tier 3 (20 days):** Makes you a winner
+- Grand prize level
+- Public health platform
+- Full differentiation
+
+**Strategy:** Build in order, demo at each tier, don't skip ahead.
+
+**Philosophy:** "A working Tier 1 demo beats a broken Tier 3 attempt."
+
+**Confidence Level:** 🟢 HIGH - This plan is realistic and achievable
+
+---
+
 ## 🏆 Enterprise Readiness & Judge's Playbook
 
 ### **Overall Verdict: 9.2/10 (Gold Standard)**
