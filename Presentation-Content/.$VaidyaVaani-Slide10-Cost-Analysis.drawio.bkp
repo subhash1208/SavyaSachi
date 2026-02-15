@@ -1,0 +1,471 @@
+<mxfile host="app.diagrams.net" modified="2026-02-15" agent="draw.io" type="device">
+  <diagram name="Slide 10 - Cost Analysis" id="slide10-cost">
+    <mxGraphModel dx="1920" dy="1080" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- SLIDE BACKGROUND -->
+        <mxCell id="bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#CCCCCC;strokeWidth=2;arcSize=2;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="1920" height="1080" as="geometry" />
+        </mxCell>
+
+        <!-- TITLE BAR -->
+        <mxCell id="titleBar" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#00AA44;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="1920" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="title" value="Cost Analysis — 89% Cheaper Than NHS 111" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=28;fontStyle=1;fontColor=#FFFFFF;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="480" y="12" width="960" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- ============ LEFT COLUMN: Cost Per Call (x=30..590) ============ -->
+        <mxCell id="leftHeader" value="Cost Per Call" style="text;html=1;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontColor=#333333;fillColor=none;strokeColor=none;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="30" y="85" width="560" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- Cost Breakdown Table -->
+        <mxCell id="tblHead" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DDDDDD;strokeWidth=1;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="60" y="125" width="500" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="tblTitle" value="VaidyaVaani Cost Breakdown" style="text;html=1;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#00AA44;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="60" y="130" width="500" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Table Header Row -->
+        <mxCell id="thBg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="80" y="158" width="460" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="th1" value="Component" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#333333;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="90" y="158" width="200" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="th2" value="Cost" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#333333;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="310" y="158" width="100" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="th3" value="%" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#333333;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="430" y="158" width="80" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Table Row 1 -->
+        <mxCell id="tr1c1" value="Connect + Nova Sonic" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="90" y="186" width="200" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="tr1c2" value="₹32" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontColor=#333333;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="310" y="186" width="100" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="tr1c3" value="76%" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="430" y="186" width="80" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Table Row 2 -->
+        <mxCell id="tr2c1" value="SMS + Storage" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="90" y="214" width="200" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="tr2c2" value="₹10" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontColor=#333333;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="310" y="214" width="100" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="tr2c3" value="24%" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="430" y="214" width="80" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Table Divider -->
+        <mxCell id="tblDiv" value="" style="line;strokeWidth=1;strokeColor=#CCCCCC;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="80" y="242" width="460" height="1" as="geometry" />
+        </mxCell>
+
+        <!-- Table Total Row -->
+        <mxCell id="trTotBg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#00AA44;strokeColor=none;opacity=15;" vertex="1" parent="1">
+          <mxGeometry x="80" y="246" width="460" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="trTot1" value="TOTAL" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#00AA44;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="90" y="246" width="200" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="trTot2" value="₹42" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#00AA44;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="310" y="246" width="100" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="trTot3" value="100%" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#00AA44;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="430" y="246" width="80" height="28" as="geometry" />
+        </mxCell>
+
+        <!-- COST COMPARISON BAR CHART -->
+        <mxCell id="barChartBox" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DDDDDD;strokeWidth=1;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="60" y="305" width="500" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="barChartTitle" value="Cost Comparison (per call)" style="text;html=1;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#333333;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="60" y="310" width="500" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Bar 1: NHS 111 -->
+        <mxCell id="bar1Label" value="NHS 111 (UK)" style="text;html=1;align=right;verticalAlign=middle;fontSize=11;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="70" y="345" width="110" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="bar1" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CC0000;strokeColor=none;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="190" y="347" width="340" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="bar1Val" value="₹840–1,050*" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#CC0000;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="190" y="373" width="150" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Bar 2: Indian Operator -->
+        <mxCell id="bar2Label" value="Indian Operator" style="text;html=1;align=right;verticalAlign=middle;fontSize=11;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="70" y="400" width="110" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="bar2" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF6600;strokeColor=none;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="190" y="402" width="45" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="bar2Val" value="₹100–120*" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#FF6600;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="240" y="400" width="120" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Bar 3: VaidyaVaani -->
+        <mxCell id="bar3Label" value="VaidyaVaani" style="text;html=1;align=right;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#00AA44;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="70" y="455" width="110" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="bar3" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#00AA44;strokeColor=none;arcSize=20;" vertex="1" parent="1">
+          <mxGeometry x="190" y="457" width="17" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="bar3Val" value="₹42" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#00AA44;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="212" y="455" width="80" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Savings Badges -->
+        <mxCell id="savBadge1" value="89% cheaper vs NHS 111" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#00AA44;strokeWidth=1;fontSize=11;fontStyle=1;fontColor=#00AA44;arcSize=30;" vertex="1" parent="1">
+          <mxGeometry x="80" y="495" width="210" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="savBadge2" value="62–71% cheaper vs Indian Ops" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#00AA44;strokeWidth=1;fontSize=11;fontStyle=1;fontColor=#00AA44;arcSize=30;" vertex="1" parent="1">
+          <mxGeometry x="310" y="495" width="230" height="28" as="geometry" />
+        </mxCell>
+
+        <!-- Footnote for left column -->
+        <mxCell id="leftFoot" value="*Estimated; official costs not disclosed" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;fontColor=#999999;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="60" y="528" width="500" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- ============ CENTER COLUMN: 3-Year Investment (x=620..1280) ============ -->
+        <mxCell id="centerHeader" value="3-Year Investment Timeline" style="text;html=1;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontColor=#333333;fillColor=none;strokeColor=none;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="620" y="85" width="660" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- Year 1 Card -->
+        <mxCell id="y1Card" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0066CC;strokeWidth=2;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="640" y="130" width="200" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="y1Badge" value="YEAR 1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0066CC;strokeColor=none;fontSize=12;fontStyle=1;fontColor=#FFFFFF;arcSize=30;" vertex="1" parent="1">
+          <mxGeometry x="700" y="138" width="80" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="y1Title" value="Pilot" style="text;html=1;align=center;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#0066CC;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="640" y="165" width="200" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="y1Cost" value="₹15 crore" style="text;html=1;align=center;verticalAlign=middle;fontSize=22;fontStyle=1;fontColor=#333333;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="640" y="190" width="200" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="y1Details" value="• AWS setup &amp; KB creation&lt;br&gt;• 1,000 calls/day&lt;br&gt;• 1 state deployment" style="text;html=1;align=center;verticalAlign=top;fontSize=11;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="650" y="222" width="180" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- Year 2 Card -->
+        <mxCell id="y2Card" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0066CC;strokeWidth=2;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="860" y="130" width="200" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="y2Badge" value="YEAR 2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0066CC;strokeColor=none;fontSize=12;fontStyle=1;fontColor=#FFFFFF;arcSize=30;" vertex="1" parent="1">
+          <mxGeometry x="920" y="138" width="80" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="y2Title" value="State Expansion" style="text;html=1;align=center;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#0066CC;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="860" y="165" width="200" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="y2Cost" value="₹20 crore" style="text;html=1;align=center;verticalAlign=middle;fontSize=22;fontStyle=1;fontColor=#333333;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="860" y="190" width="200" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="y2Details" value="• Multi-state expansion&lt;br&gt;• 10,000 calls/day&lt;br&gt;• Training &amp; scaling" style="text;html=1;align=center;verticalAlign=top;fontSize=11;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="870" y="222" width="180" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- Year 3 Card -->
+        <mxCell id="y3Card" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0066CC;strokeWidth=2;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="130" width="200" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="y3Badge" value="YEAR 3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0066CC;strokeColor=none;fontSize=12;fontStyle=1;fontColor=#FFFFFF;arcSize=30;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="138" width="80" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="y3Title" value="National Rollout" style="text;html=1;align=center;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#0066CC;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="165" width="200" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="y3Cost" value="₹28.3 crore" style="text;html=1;align=center;verticalAlign=middle;fontSize=22;fontStyle=1;fontColor=#333333;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="190" width="200" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="y3Details" value="• National rollout&lt;br&gt;• 100,000 calls/day&lt;br&gt;• Full infrastructure" style="text;html=1;align=center;verticalAlign=top;fontSize=11;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="222" width="180" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows between year cards -->
+        <mxCell id="arrow1" value="" style="endArrow=block;endFill=1;strokeColor=#0066CC;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="845" y="215" as="sourcePoint" />
+            <mxPoint x="858" y="215" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow2" value="" style="endArrow=block;endFill=1;strokeColor=#0066CC;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1065" y="215" as="sourcePoint" />
+            <mxPoint x="1078" y="215" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Total Investment Banner -->
+        <mxCell id="totalBanner" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0066CC;strokeColor=none;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="640" y="315" width="640" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="totalText" value="Total Investment: ₹63.3 crore over 3 years" style="text;html=1;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontColor=#FFFFFF;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="640" y="315" width="640" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Annual Operational Costs Box -->
+        <mxCell id="opCostBox" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DDDDDD;strokeWidth=1;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="640" y="375" width="640" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="opCostTitle" value="Annual Operational Costs" style="text;html=1;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#333333;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="640" y="380" width="640" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Op Cost Year 1 -->
+        <mxCell id="opY1Box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#90CAF9;strokeWidth=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="660" y="415" width="190" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="opY1Label" value="Year 1" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="660" y="415" width="190" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="opY1Val" value="₹1.53 crore" style="text;html=1;align=center;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#0066CC;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="660" y="437" width="190" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Op Cost Year 2 -->
+        <mxCell id="opY2Box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#90CAF9;strokeWidth=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="865" y="415" width="190" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="opY2Label" value="Year 2" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="865" y="415" width="190" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="opY2Val" value="₹15.33 crore" style="text;html=1;align=center;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#0066CC;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="865" y="437" width="190" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Op Cost Year 3 -->
+        <mxCell id="opY3Box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#90CAF9;strokeWidth=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="415" width="190" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="opY3Label" value="Year 3" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="415" width="190" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="opY3Val" value="₹153.3 crore" style="text;html=1;align=center;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#0066CC;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="437" width="190" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Scale indicator arrows -->
+        <mxCell id="scaleArrow1" value="" style="endArrow=block;endFill=1;strokeColor=#90CAF9;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="855" y="442" as="sourcePoint" />
+            <mxPoint x="863" y="442" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="scaleArrow2" value="" style="endArrow=block;endFill=1;strokeColor=#90CAF9;strokeWidth=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1060" y="442" as="sourcePoint" />
+            <mxPoint x="1068" y="442" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Government Budget Comparison -->
+        <mxCell id="govBox" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DDDDDD;strokeWidth=1;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="660" y="480" width="600" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="govTitle" value="vs Government Programs:" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#333333;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="670" y="483" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="govNHM" value="NHM 2026-27: ₹39,390 cr" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="670" y="503" width="180" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="govBV" value="Bharat Vistaar: ₹150 cr" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="670" y="521" width="180" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="govVV" value="VaidyaVaani: ₹63.3 cr = 0.16% of NHM budget" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#00AA44;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="900" y="503" width="340" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- ============ RIGHT COLUMN: ROI & Value (x=1310..1890) ============ -->
+        <mxCell id="rightHeader" value="ROI &amp; Value" style="text;html=1;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontColor=#333333;fillColor=none;strokeColor=none;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="1310" y="85" width="580" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- ROI Analysis Card -->
+        <mxCell id="roiCard" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#00AA44;strokeWidth=2;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="1330" y="130" width="540" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="roiTitle" value="ROI Analysis (Year 3)" style="text;html=1;align=center;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#00AA44;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1330" y="135" width="540" height="28" as="geometry" />
+        </mxCell>
+
+        <!-- Annual Op Cost -->
+        <mxCell id="roiOpIcon" value="💰" style="text;html=1;align=center;verticalAlign=middle;fontSize=20;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1345" y="170" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="roiOpLabel" value="Annual Operational Cost:" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1380" y="170" width="200" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="roiOpVal" value="₹153.3 crore" style="text;html=1;align=left;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#333333;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1590" y="170" width="200" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Estimated Savings -->
+        <mxCell id="roiSavIcon" value="💰" style="text;html=1;align=center;verticalAlign=middle;fontSize=20;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1345" y="200" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="roiSavLabel" value="Estimated Savings:" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1380" y="200" width="200" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="roiSavVal" value="₹500–1,000 crore/year" style="text;html=1;align=left;verticalAlign=middle;fontSize=18;fontStyle=1;fontColor=#00AA44;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1590" y="198" width="260" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Savings Sources -->
+        <mxCell id="savSrc" value="✓ Reduced ambulance dispatches&lt;br&gt;✓ Reduced ER visits&lt;br&gt;✓ Early detection&lt;br&gt;✓ Chronic care management" style="text;html=1;align=left;verticalAlign=top;fontSize=11;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1380" y="235" width="250" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ROI Highlight Box -->
+        <mxCell id="roiHighlight" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#00AA44;strokeWidth=2;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1640" y="240" width="210" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="roiPercent" value="ROI: 225–550%" style="text;html=1;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontColor=#00AA44;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1640" y="245" width="210" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="roiConservative" value="(conservative)" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1640" y="272" width="210" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="roiPayback" value="Payback: 18–24 months" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#0066CC;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1640" y="290" width="210" height="22" as="geometry" />
+        </mxCell>
+
+        <!-- Budget Comparison Pie-style visual -->
+        <mxCell id="budgetBox" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#DDDDDD;strokeWidth=1;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="1330" y="345" width="540" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="budgetTitle" value="vs Government Programs" style="text;html=1;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#333333;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1330" y="350" width="540" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- NHM Bar -->
+        <mxCell id="budNHMLabel" value="NHM 2026-27" style="text;html=1;align=right;verticalAlign=middle;fontSize=11;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="385" width="120" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="budNHMBar" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=none;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="1470" y="387" width="370" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="budNHMVal" value="₹39,390 cr" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#0066CC;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1475" y="387" width="100" height="22" as="geometry" />
+        </mxCell>
+
+        <!-- Bharat Vistaar Bar -->
+        <mxCell id="budBVLabel" value="Bharat Vistaar" style="text;html=1;align=right;verticalAlign=middle;fontSize=11;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="418" width="120" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="budBVBar" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE0B2;strokeColor=none;arcSize=20;" vertex="1" parent="1">
+          <mxGeometry x="1470" y="420" width="5" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="budBVVal" value="₹150 cr" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#FF6600;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1480" y="418" width="80" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- VaidyaVaani Bar -->
+        <mxCell id="budVVLabel" value="VaidyaVaani" style="text;html=1;align=right;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#00AA44;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="451" width="120" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="budVVBar" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#00AA44;strokeColor=none;arcSize=20;" vertex="1" parent="1">
+          <mxGeometry x="1470" y="453" width="3" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="budVVVal" value="₹63.3 cr" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#00AA44;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1480" y="451" width="80" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Budget insight -->
+        <mxCell id="budInsight" value="VaidyaVaani = 0.16% of NHM budget  |  42% of Bharat Vistaar budget" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#00AA44;fillColor=#E8F5E9;strokeColor=#00AA44;rounded=1;arcSize=20;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="490" width="480" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- ============ BOTTOM SECTION: Value Propositions (Full Width) ============ -->
+
+        <!-- Divider Line -->
+        <mxCell id="divider" value="" style="line;strokeWidth=2;strokeColor=#00AA44;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="570" width="1840" height="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bottomTitle" value="Why VaidyaVaani Wins" style="text;html=1;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontColor=#333333;fillColor=none;strokeColor=none;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="640" y="580" width="640" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- Value Prop 1: Cost Efficiency -->
+        <mxCell id="vp1Box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#00AA44;strokeWidth=2;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="50" y="625" width="440" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="vp1Icon" value="🎯" style="text;html=1;align=center;verticalAlign=middle;fontSize=28;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="60" y="635" width="50" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="vp1Title" value="Cost Efficiency" style="text;html=1;align=left;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#00AA44;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="115" y="635" width="350" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="vp1Desc" value="• ₹42 per call vs ₹840–1,050 (NHS 111)&lt;br&gt;• Zero marginal cost at scale&lt;br&gt;• 89% cheaper than global benchmarks" style="text;html=1;align=left;verticalAlign=top;fontSize=12;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="115" y="668" width="360" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- Value Prop 2: Scalability -->
+        <mxCell id="vp2Box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0066CC;strokeWidth=2;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="510" y="625" width="440" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="vp2Icon" value="🎯" style="text;html=1;align=center;verticalAlign=middle;fontSize=28;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="520" y="635" width="50" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="vp2Title" value="Scalability" style="text;html=1;align=left;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#0066CC;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="575" y="635" width="350" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="vp2Desc" value="• Serverless architecture&lt;br&gt;• Handles millions of calls&lt;br&gt;• Linear cost scaling" style="text;html=1;align=left;verticalAlign=top;fontSize=12;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="575" y="668" width="360" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- Value Prop 3: Consistency -->
+        <mxCell id="vp3Box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FF6600;strokeWidth=2;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="970" y="625" width="440" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="vp3Icon" value="🎯" style="text;html=1;align=center;verticalAlign=middle;fontSize=28;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="980" y="635" width="50" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="vp3Title" value="Consistency" style="text;html=1;align=left;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#FF6600;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1035" y="635" width="350" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="vp3Desc" value="• 24/7 availability&lt;br&gt;• No operator variability&lt;br&gt;• Standardized medical guidance" style="text;html=1;align=left;verticalAlign=top;fontSize=12;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1035" y="668" width="360" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- Value Prop 4: Government Fit -->
+        <mxCell id="vp4Box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CC0000;strokeWidth=2;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="1430" y="625" width="440" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="vp4Icon" value="🎯" style="text;html=1;align=center;verticalAlign=middle;fontSize=28;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1440" y="635" width="50" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="vp4Title" value="Government Fit" style="text;html=1;align=left;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#CC0000;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1495" y="635" width="350" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="vp4Desc" value="• 42% of Bharat Vistaar budget&lt;br&gt;• 0.16% of NHM budget&lt;br&gt;• Aligns with Digital India mission" style="text;html=1;align=left;verticalAlign=top;fontSize=12;fontColor=#666666;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1495" y="668" width="360" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- ============ FOOTNOTES ============ -->
+        <mxCell id="footnoteLine" value="" style="line;strokeWidth=1;strokeColor=#CCCCCC;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="760" width="1840" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="footnotes" value="¹ NHS 111 cost estimated from operational benchmarks; UK does not publish per-call costs  ² Indian operator cost based on 24/7 health helpline industry benchmarks  ³ VaidyaVaani cost calculated from AWS pricing, Feb 2026  ⁴ ROI estimates are conservative  ⁵ NHM budget source: Union Budget 2026-27" style="text;html=1;align=center;verticalAlign=top;fontSize=9;fontStyle=2;fontColor=#999999;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="765" width="1840" height="30" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

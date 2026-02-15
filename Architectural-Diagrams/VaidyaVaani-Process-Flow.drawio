@@ -1,0 +1,178 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.3.6 Chrome/140.0.7339.249 Electron/38.8.0 Safari/537.36" version="29.3.6">
+  <diagram name="Process Flow" id="process-flow">
+    <mxGraphModel dx="1542" dy="1045" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" background="#ffffff" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=32;fontStyle=1;fontColor=#0066CC;" value="User Journey - From Call to Care" vertex="1">
+          <mxGeometry height="60" width="800" x="560" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="step1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0066CC;strokeColor=#004499;strokeWidth=2;fontColor=#FFFFFF;fontSize=16;fontStyle=1;align=center;" value="USER CALLS&#xa;Toll-free number&#xa;Any phone works" vertex="1">
+          <mxGeometry height="80" width="280" x="200" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow1" edge="1" parent="1" source="step1" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#0066CC;" target="step2" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="340" y="220" as="sourcePoint" />
+            <mxPoint x="340" y="260" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="step2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0066CC;strokeColor=#004499;strokeWidth=2;fontColor=#FFFFFF;fontSize=16;fontStyle=1;align=center;" value="LANGUAGE SELECTION&#xa;Hindi/English/Regional&#xa;Voice-based menu" vertex="1">
+          <mxGeometry height="80" width="280" x="200" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow2" edge="1" parent="1" source="step2" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#0066CC;" target="step3" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="340" y="330" as="sourcePoint" />
+            <mxPoint x="340" y="370" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="step3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0066CC;strokeColor=#004499;strokeWidth=2;fontColor=#FFFFFF;fontSize=16;fontStyle=1;align=center;" value="SYMPTOM DESCRIPTION&#xa;&quot;Mera bachcha bukhar hai&quot;&#xa;Natural language" vertex="1">
+          <mxGeometry height="80" width="280" x="200" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow3" edge="1" parent="1" source="step3" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#0066CC;" target="step4" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="340" y="440" as="sourcePoint" />
+            <mxPoint x="340" y="480" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="step4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0066CC;strokeColor=#004499;strokeWidth=2;fontColor=#FFFFFF;fontSize=16;fontStyle=1;align=center;" value="KEYWORD DETECTION&#xa;Emergency keywords?&#xa;Emotion analysis (panic/distress)" vertex="1">
+          <mxGeometry height="80" width="280" x="200" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow4" edge="1" parent="1" source="step4" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#0066CC;" target="step5" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="340" y="550" as="sourcePoint" />
+            <mxPoint x="340" y="590" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="step5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF6600;strokeColor=#CC5200;strokeWidth=2;fontColor=#FFFFFF;fontSize=16;fontStyle=1;align=center;" value="SEVERITY ASSESSMENT&#xa;Emergency vs Non-Emergency&#xa;&lt;200ms decision" vertex="1">
+          <mxGeometry height="80" width="280" x="200" y="580" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow5" edge="1" parent="1" source="step5" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#FF6600;" target="decision" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="340" y="660" as="sourcePoint" />
+            <mxPoint x="340" y="700" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="decision" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFD700;strokeColor=#FF6600;strokeWidth=3;fontColor=#000000;fontSize=20;fontStyle=1;" value="EMERGENCY?" vertex="1">
+          <mxGeometry height="200" width="200" x="240" y="700" as="geometry" />
+        </mxCell>
+        <mxCell id="emergency-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1;fontColor=#CC0000;" value="EMERGENCY PATH" vertex="1">
+          <mxGeometry height="50" width="400" x="630" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-emergency" edge="1" parent="1" source="decision" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#CC0000;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points">
+              <mxPoint x="560" y="800" />
+              <mxPoint x="560" y="200" />
+              <mxPoint x="840" y="200" />
+            </Array>
+            <mxPoint x="440" y="790" as="sourcePoint" />
+            <mxPoint x="840" y="245" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="QUWAnVVRr3gR-j_oF9k_-3" connectable="0" parent="arrow-emergency" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="&lt;span style=&quot;color: rgb(255, 163, 163); font-size: 16px; font-weight: 700; text-wrap-mode: wrap; background-color: rgb(27, 29, 30);&quot;&gt;YES&lt;/span&gt;" vertex="1">
+          <mxGeometry relative="1" x="0.0503" y="6" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow-emergency-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#CC0000;" value="YES" vertex="1">
+          <mxGeometry height="30" width="80" x="310" y="750" as="geometry" />
+        </mxCell>
+        <mxCell id="emergency1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CC0000;strokeColor=#990000;strokeWidth=2;fontColor=#FFFFFF;fontSize=15;fontStyle=1;align=center;" value="ABCDE ASSESSMENT&#xa;WHO protocol (5 quick checks)&#xa;No questions - Direct assessment" vertex="1">
+          <mxGeometry height="80" width="300" x="700" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="emergency-arrow1" edge="1" parent="1" source="emergency1" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#CC0000;" target="emergency2" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="850" y="320" as="sourcePoint" />
+            <mxPoint x="850" y="360" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="emergency2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CC0000;strokeColor=#990000;strokeWidth=2;fontColor=#FFFFFF;fontSize=15;fontStyle=1;align=center;" value="108 DISPATCH&#xa;Automatic trigger&#xa;Ambulance on the way" vertex="1">
+          <mxGeometry height="80" width="300" x="700" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="emergency-arrow2" edge="1" parent="1" source="emergency2" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#CC0000;" target="emergency3" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="850" y="430" as="sourcePoint" />
+            <mxPoint x="850" y="470" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="emergency3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CC0000;strokeColor=#990000;strokeWidth=2;fontColor=#FFFFFF;fontSize=15;fontStyle=1;align=center;" value="HOSPITAL ALERT&#xa;Nearest facility notified&#xa;Prepare for arrival" vertex="1">
+          <mxGeometry height="80" width="300" x="700" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="emergency-arrow3" edge="1" parent="1" source="emergency3" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#CC0000;" target="emergency4" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="850" y="540" as="sourcePoint" />
+            <mxPoint x="850" y="580" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="emergency4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CC0000;strokeColor=#990000;strokeWidth=2;fontColor=#FFFFFF;fontSize=15;fontStyle=1;align=center;" value="ASHA ALERT&#xa;Health worker notified&#xa;Follow-up arranged" vertex="1">
+          <mxGeometry height="80" width="300" x="700" y="570" as="geometry" />
+        </mxCell>
+        <mxCell id="non-emergency-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1;fontColor=#00AA44;" value="NON-EMERGENCY PATH" vertex="1">
+          <mxGeometry height="50" width="450" x="1150" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-non-emergency" edge="1" parent="1" source="decision" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#00AA44;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="non-emergency1" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points">
+              <mxPoint x="1040" y="900" />
+              <mxPoint x="1040" y="670" />
+              <mxPoint x="1040" y="240" />
+              <mxPoint x="1250" y="240" />
+            </Array>
+            <mxPoint x="380" y="944.9999999999998" as="sourcePoint" />
+            <mxPoint x="1150.7142857142858" y="530" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="QUWAnVVRr3gR-j_oF9k_-5" connectable="0" parent="arrow-non-emergency" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];imageWidth=30;" value="&lt;span style=&quot;color: rgb(20, 166, 78); font-size: 16px; font-weight: 700; text-wrap-mode: wrap; background-color: rgb(27, 29, 30);&quot;&gt;NO&lt;/span&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.0922" y="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow-non-emergency-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#00AA44;" value="NO" vertex="1">
+          <mxGeometry height="30" width="80" x="300" y="830" as="geometry" />
+        </mxCell>
+        <mxCell id="non-emergency1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#00AA44;strokeColor=#008833;strokeWidth=2;fontColor=#FFFFFF;fontSize=15;fontStyle=1;align=center;" value="AI TRIAGE&#xa;Asks 3-4 questions&#xa;ICMR protocols" vertex="1">
+          <mxGeometry height="80" width="300" x="1100" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="non-emergency-arrow1" edge="1" parent="1" source="non-emergency1" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#00AA44;" target="non-emergency2" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="1250" y="350" as="sourcePoint" />
+            <mxPoint x="1250" y="390" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="non-emergency2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#00AA44;strokeColor=#008833;strokeWidth=2;fontColor=#FFFFFF;fontSize=15;fontStyle=1;align=center;" value="TREATMENT ADVICE&#xa;ICMR guidelines&#xa;First-aid instructions" vertex="1">
+          <mxGeometry height="80" width="300" x="1100" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="non-emergency-arrow2" edge="1" parent="1" source="non-emergency2" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#00AA44;" target="non-emergency3" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="1250" y="460" as="sourcePoint" />
+            <mxPoint x="1250" y="500" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="non-emergency3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#00AA44;strokeColor=#008833;strokeWidth=2;fontColor=#FFFFFF;fontSize=15;fontStyle=1;align=center;" value="SMS INSTRUCTIONS&#xa;ORS recipe, Medicine dosage&#xa;First-aid steps" vertex="1">
+          <mxGeometry height="80" width="300" x="1100" y="490" as="geometry" />
+        </mxCell>
+        <mxCell id="non-emergency-arrow3" edge="1" parent="1" source="non-emergency3" style="endArrow=classic;html=1;strokeWidth=3;strokeColor=#00AA44;" target="non-emergency4" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="1250" y="570" as="sourcePoint" />
+            <mxPoint x="1250" y="610" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="non-emergency4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#00AA44;strokeColor=#008833;strokeWidth=2;fontColor=#FFFFFF;fontSize=15;fontStyle=1;align=center;" value="FOLLOW-UP SCHEDULED&#xa;AI calls back in 2 hours&#xa;Check if improved" vertex="1">
+          <mxGeometry height="80" width="300" x="1100" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="parallel-bg" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="100" width="450" x="580" y="720" as="geometry" />
+        </mxCell>
+        <mxCell id="parallel-title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;fontColor=#333333;" value="PARALLEL ACTIONS" vertex="1">
+          <mxGeometry height="30" width="400" x="620" y="730" as="geometry" />
+        </mxCell>
+        <mxCell id="parallel-text1" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=0;fontColor=#333333;" value="All actions happen simultaneously via AWS Step Functions" vertex="1">
+          <mxGeometry height="25" width="800" x="405" y="760" as="geometry" />
+        </mxCell>
+        <mxCell id="parallel-text2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=0;fontColor=#333333;" value="SMS + 108 + Hospital + ASHA - all triggered in parallel" vertex="1">
+          <mxGeometry height="25" width="800" x="420" y="785" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -50,6 +50,7 @@ SavyaSachi/
 │   │   └── VaidyaVaani-Data-Sources-Guide.md (13 verified govt/WHO data sources - 1121 lines)
 │   ├── Architectural-Diagrams/
 │   │   ├── README-Diagrams.md (Diagram explanations)
+│   │   ├── Location-Detection-Strategy.md (3-tier location capture for feature phones)
 │   │   ├── VaidyaVaani-Architecture.png (Complete system - 371 KB)
 │   │   ├── VaidyaVaani-Nova-Sonic-Architecture.png (Optimized - 174 KB)
 │   │   └── VaidyaVaani-Cost-Comparison.png (Visual breakdown - 140 KB)
@@ -864,8 +865,10 @@ User calls → "Seene mein dard hai, saans phool rahi hai" (Chest pain, breathle
    D: "Kya woh hosh mein hain?" → YES
    E: "Paseena aa raha hai?" → YES
 → AI: "Yeh heart attack ke lakshan hain. 108 ambulance abhi bhej rahi hoon"
-→ SMS to demo phone: "108 DISPATCHED - Cardiac Emergency - Location: [GPS]"
-→ SMS to family: "Emergency: Heart attack suspected, ambulance dispatched"
+→ AI: "Aap kahan hain? Gaon ka naam bataiye" (Where are you? Tell village name)
+→ User: "Khedi village, Bhopal ke paas"
+→ SMS to demo phone: "108 DISPATCHED - Cardiac Emergency - Location: Khedi village, near Bhopal, MP"
+→ SMS to family: "Emergency: Heart attack suspected, ambulance dispatched to Khedi village"
 → AI: "Aspirin hai toh ek goli chabayein, lait jayein, hilna mat"
 → Logs: ICD-10 I21.9, Severity: CRITICAL, Dispatch: 108
 ```

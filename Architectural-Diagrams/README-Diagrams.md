@@ -1,6 +1,8 @@
 # VaidyaVaani Architecture Diagrams
 
-This folder contains 3 AWS architecture diagrams for the VaidyaVaani project:
+This folder contains 3 AWS architecture diagrams for the VaidyaVaani project, plus technical implementation guides.
+
+## Architecture Diagrams
 
 ## 1. VaidyaVaani-Architecture.png (371 KB)
 **Complete System Architecture**
@@ -86,6 +88,42 @@ Visual comparison of cost structures:
 **Use this for**: Cost justification, government pitch, ROI discussions
 
 **Key Insight**: NHS 111 spends 70% on human labor. VaidyaVaani replaces humans with AI, saving ₹660 per call.
+
+---
+
+## Technical Implementation Guides
+
+### Location-Detection-Strategy.md
+**Complete guide to capturing caller location on feature phones**
+
+Since feature phones don't have GPS, VaidyaVaani uses a 3-tier location detection strategy:
+
+**Tier 1 (Primary): Voice-Based Location**
+- AI asks: "Aap kahan hain?" (Where are you?)
+- User responds: "Khedi village, Bhopal ke paas"
+- Accuracy: Village/landmark level
+- Capture rate: 85-90%
+
+**Tier 2 (Fallback): Phone Number Prefix**
+- Automatic extraction from STD code
+- Accuracy: District/city level
+- Capture rate: 100%
+
+**Tier 3 (Enhancement): SMS Location Share**
+- For smartphone users only
+- GPS-level accuracy
+- Capture rate: 30-40%
+
+**Why This Matters:**
+- 350 million feature phone users don't have GPS
+- Voice-based location matches how 108 ambulances already operate in India
+- Practical, inclusive, and accurate enough for emergency dispatch
+
+**Use this for:**
+- Understanding how location detection works
+- Demo preparation (showing realistic location capture)
+- Q&A responses about GPS/location
+- Technical implementation during hackathon
 
 ---
 
