@@ -36,6 +36,8 @@ SavyaSachi/
 ├── README.md (this file - Team info + Submission requirements)
 ├── requirements.md (To be generated via Kiro)
 ├── design.md (To be generated via Kiro)
+├── Presentation-Content/
+│   └── VaidyaVaani-Slide-Content-Guide.md (Complete PPT content mapping)
 ├── VaidyaVaani/
 │   ├── VaidyaVaani-Final-Presentation.md (Complete presentation - 40 KB)
 │   ├── VaidyaVaani-Cost-Analysis.md (Detailed cost breakdown - 52 KB)
