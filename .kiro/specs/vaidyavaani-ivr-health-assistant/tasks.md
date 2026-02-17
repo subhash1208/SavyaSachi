@@ -8,15 +8,18 @@ This plan implements VaidyaVaani as a serverless TypeScript application on AWS. 
 
 - [ ] 1. Set up project structure and core data models
   - [ ] 1.1 Initialize TypeScript project with Jest and fast-check
-    - Create project directory structure: `src/`, `src/models/`, `src/handlers/`, `src/services/`, `src/utils/`, `tests/`
+    - Create project directory structure: `src/`, `src/models/`, `src/handlers/`, `src/services/`, `src/repositories/`, `src/interfaces/`, `src/middleware/`, `src/utils/`, `tests/`
     - Initialize `package.json` with TypeScript, Jest, fast-check, aws-sdk v3, and aws-sdk-client-mock
     - Configure `tsconfig.json` for Lambda-compatible output (ES2020, CommonJS)
     - Configure Jest with ts-jest preset
     - _Requirements: All_
 
-  - [ ] 1.2 Implement core TypeScript data models and enumerations
+  - [ ] 1.2 Implement core TypeScript data models, enumerations, and service interfaces
     - Create `src/models/types.ts` with all interfaces: `CallRecord`, `LocationData`, `EmergencyScript`, `TriageResult`, `ClassificationInput`, `IntentResult`, `EmergencyData`, `DispatchResult`, `ChronicCareEnrollment`, `FHIRCondition`, `STDCodeEntry`, `OutbreakAlert`
     - Create `src/models/enums.ts` with all enumerations: `Language`, `Voice`, `EmergencyCondition`, `ChronicCondition`, `FacilityLevel`, `ActionType`, `CallPurpose`, `FollowUpPurpose`
+    - Create service interface files in `src/interfaces/`: `IIntentRouter.ts`, `IEmergencyKB.ts`, `IGeneralTriageKB.ts`, `ITriageAgent.ts`, `IEmergencyDispatch.ts`, `ILocationDetector.ts`, `ICallLogger.ts`, `IActionOrchestrator.ts`, `ISmsService.ts`, `IReferralAgent.ts`, `IFollowUpScheduler.ts`, `IASHAWorkerAgent.ts`, `IDiseaseSurveillance.ts`, `IChronicCareAgent.ts`, `IMultimodalVision.ts`, `IHospitalDashboard.ts`
+    - Create `src/interfaces/index.ts` barrel file exporting all interfaces
+    - Create `src/middleware/errorHandler.ts` with shared `withErrorHandler` wrapper for consistent error responses and emergency fallback
     - _Requirements: All_
 
   - [ ]* 1.3 Write property test for DTMF key routing
@@ -261,3 +264,5 @@ This plan implements VaidyaVaani as a serverless TypeScript application on AWS. 
 - Unit tests validate specific examples and edge cases
 - The 3 hackathon demo scenarios (heart attack, child fever, disease surveillance) are prioritized in task ordering
 - Emergency scripts for cardiac, snakebite, and child fever/dehydration are built first (Task 3) as they are demo-critical
+- **DI Pattern:** All service implementations follow the Dependency Injection pattern from the design. Lambda handlers use constructor injection via factory functions (`createHandler(...)`) to receive service instances. Services depend on interfaces from `src/interfaces/`, not concrete implementations. This enables unit testing with mocks and keeps the 3-layer architecture (Handler → Service → Repository) clean.
+- **Error Middleware:** All Lambda handlers are wrapped with `withErrorHandler` from `src/middleware/errorHandler.ts` for consistent error logging and emergency fallback behavior.

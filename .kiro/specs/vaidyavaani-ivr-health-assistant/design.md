@@ -321,6 +321,256 @@ graph TD
 - `findNearestFacility(location: LocationData, requiredLevel: FacilityLevel): Facility` — Facility lookup
 - `getFacilityCapabilities(facilityId: string): FacilityCapabilities` — What the facility can handle
 
+## Enterprise Architecture Patterns
+
+### 3-Layer Architecture
+
+All Lambda-based components follow a strict 3-layer separation of concerns:
+
+```
+┌─────────────────────────────────────────────────┐
+│  Handler Layer (Lambda Entry Points)            │
+│  - Receives AWS event (Connect, API GW, etc.)   │
+│  - Validates input shape                        │
+│  - Delegates to Service Layer                   │
+│  - Returns formatted response                   │
+│  - NO business logic here                       │
+├─────────────────────────────────────────────────┤
+│  Service Layer (Business Logic)                 │
+│  - Triage assessment, intent classification     │
+│  - Dispatch orchestration, location resolution  │
+│  - Severity mapping, FHIR generation            │
+│  - Depends on interfaces, not concrete repos    │
+├─────────────────────────────────────────────────┤
+│  Repository / DAO Layer (Data Access)           │
+│  - DynamoDB read/write operations               │
+│  - S3 storage operations                        │
+│  - Bedrock KB retrieval calls                   │
+│  - External API calls (108 bridge, SNS, etc.)   │
+│  - Implements repository interfaces             │
+└─────────────────────────────────────────────────┘
+```
+
+**Layer Rules:**
+- Handlers import services, never repositories directly
+- Services import repository interfaces, never AWS SDK clients directly
+- Repositories encapsulate all external I/O (DynamoDB, S3, Bedrock, SNS)
+- Each layer is independently testable
+
+### Service Interfaces (Dependency Inversion Principle)
+
+All services depend on interfaces, not concrete implementations. This enables unit testing with mocks and swapping implementations without changing business logic.
+
+```typescript
+// src/interfaces/IIntentRouter.ts
+export interface IIntentRouter {
+  classifyIntent(input: ClassificationInput): Promise<IntentResult>;
+  checkEmergencyKeywords(text: string, language: Language): boolean;
+  checkDangerSigns(context: ConversationContext): boolean;
+}
+
+// src/interfaces/IEmergencyKB.ts
+export interface IEmergencyKB {
+  retrieveEmergencyScript(condition: EmergencyCondition): Promise<EmergencyScript>;
+  getABCDEAssessment(condition: EmergencyCondition): Promise<ABCDEScript>;
+}
+
+// src/interfaces/IGeneralTriageKB.ts
+export interface IGeneralTriageKB {
+  queryTriage(symptoms: string, context: ConversationContext): Promise<TriageResponse>;
+  generateFollowUpQuestion(context: ConversationContext): Promise<string>;
+  classifySeverity(triageResult: TriageResult): SeverityLevel;
+}
+
+// src/interfaces/ITriageAgent.ts
+export interface ITriageAgent {
+  assessSymptoms(input: SymptomInput, kbResults: KBResults): Promise<TriageAssessment>;
+  generateTreatmentAdvice(assessment: TriageAssessment): Promise<TreatmentAdvice>;
+  tagICD10(assessment: TriageAssessment): ICD10Code;
+  determineFacilityLevel(severity: SeverityLevel): FacilityLevel;
+}
+
+// src/interfaces/IEmergencyDispatch.ts
+export interface IEmergencyDispatch {
+  executeLayer1(emergency: EmergencyData, location: LocationData): Promise<DispatchResult>;
+  executeLayer2(emergency: EmergencyData, location: LocationData): Promise<DispatchResult>;
+  executeLayer3(emergency: EmergencyData, location: LocationData): Promise<DispatchResult>;
+  bridgeTo108(callId: string, assessmentSummary: string): Promise<void>;
+}
+
+// src/interfaces/ILocationDetector.ts
+export interface ILocationDetector {
+  extractSTDCode(phoneNumber: string): Tier2Location;
+  parseVoiceLocation(transcribedText: string): Tier1Location;
+  sendGPSLink(phoneNumber: string, callId: string): Promise<void>;
+  receiveGPSCoordinates(callId: string, lat: number, lng: number): Tier3Location;
+  resolveLocation(callId: string): Promise<ResolvedLocation>;
+}
+
+// src/interfaces/ICallLogger.ts
+export interface ICallLogger {
+  logCall(callRecord: CallRecord): Promise<void>;
+  storeRecording(callId: string, audioStream: AudioStream): Promise<string>;
+  redactPII(record: CallRecord): RedactedCallRecord;
+  generateFHIRRecord(triageResult: TriageResult): FHIRCondition;
+}
+
+// src/interfaces/IActionOrchestrator.ts
+export interface IActionOrchestrator {
+  orchestrateActions(triageResult: TriageResult, location: LocationData): Promise<ActionResults>;
+}
+
+// src/interfaces/ISmsService.ts
+export interface ISmsService {
+  sendTriageSummary(phoneNumber: string, triageResult: TriageResult): Promise<void>;
+  sendEmergencyInfo(phoneNumber: string, hospitals: Hospital[]): Promise<void>;
+}
+
+// src/interfaces/IReferralAgent.ts
+export interface IReferralAgent {
+  findNearestFacility(location: LocationData, requiredLevel: FacilityLevel): Promise<Facility>;
+  getFacilityCapabilities(facilityId: string): Promise<FacilityCapabilities>;
+}
+
+// src/interfaces/IFollowUpScheduler.ts
+export interface IFollowUpScheduler {
+  scheduleFollowUp(callId: string, interval: Duration, purpose: FollowUpPurpose): Promise<string>;
+  triggerFollowUp(scheduleId: string): Promise<void>;
+  cancelFollowUp(scheduleId: string): Promise<void>;
+}
+
+// src/interfaces/IASHAWorkerAgent.ts
+export interface IASHAWorkerAgent {
+  alertASHAWorker(location: LocationData, patientDetails: PatientSummary): Promise<void>;
+  assignChronicCare(patientId: string, condition: ChronicCondition, ashaWorkerId: string): Promise<void>;
+  sendMonitoringChecklist(ashaWorkerId: string, checklist: MonitoringChecklist): Promise<void>;
+}
+
+// src/interfaces/IDiseaseSurveillance.ts
+export interface IDiseaseSurveillance {
+  aggregateByConditionAndLocation(timeWindow: Duration): Promise<AggregatedData>;
+  detectAnomaly(aggregatedData: AggregatedData, threshold: number): OutbreakAlert[];
+  alertDHO(alert: OutbreakAlert): Promise<void>;
+}
+
+// src/interfaces/IChronicCareAgent.ts
+export interface IChronicCareAgent {
+  enrollPatient(callRecord: CallRecord, condition: ChronicCondition): Promise<ChronicCareEnrollment>;
+  getMonitoringChecklist(condition: ChronicCondition): string[];
+}
+
+// src/interfaces/IMultimodalVision.ts
+export interface IMultimodalVision {
+  analyzeImage(imageData: ImageData, context: TriageContext): Promise<VisualAssessment>;
+  identifySnakeSpecies(imageData: ImageData): Promise<SnakeIdentification>;
+  assessWound(imageData: ImageData): Promise<WoundAssessment>;
+}
+
+// src/interfaces/IHospitalDashboard.ts
+export interface IHospitalDashboard {
+  blastNotification(hospitals: Hospital[], emergency: EmergencyData): Promise<void>;
+  acceptPatient(hospitalId: string, emergencyId: string): Promise<AcceptanceConfirmation>;
+  getHospitalsInRadius(location: LocationData, radiusKm: number): Promise<Hospital[]>;
+}
+```
+
+All interfaces are exported from a barrel file at `src/interfaces/index.ts`.
+
+### Dependency Injection Pattern
+
+Lambda handlers receive service instances via constructor injection. No DI framework is needed — plain TypeScript constructor injection keeps it simple and testable.
+
+```typescript
+// src/handlers/intentRouter.ts — Handler Layer
+import { IIntentRouter } from '../interfaces/IIntentRouter';
+import { ICallLogger } from '../interfaces/ICallLogger';
+import { IntentRouterService } from '../services/intentRouterService';
+import { CallLoggerRepository } from '../repositories/callLoggerRepository';
+
+// Factory function creates the handler with real dependencies
+function createHandler(
+  intentRouter: IIntentRouter,
+  callLogger: ICallLogger
+) {
+  return async (event: ConnectContactFlowEvent) => {
+    const input = parseEvent(event);       // Handler: parse input
+    const result = await intentRouter.classifyIntent(input);  // Delegate to service
+    await callLogger.logCall(buildCallRecord(input, result)); // Delegate to service
+    return formatResponse(result);         // Handler: format output
+  };
+}
+
+// Production wiring — real implementations
+const intentRouterService = new IntentRouterService();
+const callLoggerRepo = new CallLoggerRepository();
+export const handler = createHandler(intentRouterService, callLoggerRepo);
+
+// In tests — inject mocks
+// const handler = createHandler(mockIntentRouter, mockCallLogger);
+```
+
+**Pattern Benefits:**
+- Handlers are thin — parse event, delegate, return response
+- Services contain all business logic and depend only on interfaces
+- Tests inject mock implementations without touching AWS SDK
+- No DI framework overhead — just TypeScript constructors
+
+### Error Handling Middleware Pattern
+
+A shared error handler wraps all Lambda handlers for consistent error responses, logging, and emergency fallback behavior.
+
+```typescript
+// src/middleware/errorHandler.ts
+import { Logger } from '../utils/logger';
+
+interface ErrorResponse {
+  statusCode: number;
+  body: string;
+  errorType: string;
+}
+
+export function withErrorHandler<TEvent, TResult>(
+  handlerName: string,
+  handler: (event: TEvent) => Promise<TResult>,
+  options?: { isEmergencyPath?: boolean }
+): (event: TEvent) => Promise<TResult | ErrorResponse> {
+  return async (event: TEvent) => {
+    try {
+      return await handler(event);
+    } catch (error) {
+      Logger.error(`[${handlerName}] Unhandled error`, { error, event });
+
+      // Emergency paths must NEVER leave the caller without help
+      if (options?.isEmergencyPath) {
+        Logger.critical(`[${handlerName}] Emergency path failure — triggering 108 fallback`);
+        // Return a response that triggers the Connect contact flow to bridge to 108
+        return {
+          statusCode: 500,
+          body: JSON.stringify({ fallbackAction: 'bridge_108' }),
+          errorType: 'EMERGENCY_FALLBACK'
+        } as unknown as TResult;
+      }
+
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ message: 'Internal server error', handler: handlerName }),
+        errorType: error instanceof Error ? error.name : 'UnknownError'
+      } as unknown as TResult;
+    }
+  };
+}
+
+// Usage in handlers:
+// export const handler = withErrorHandler('intentRouter', createHandler(...), { isEmergencyPath: true });
+```
+
+**Middleware Responsibilities:**
+- Catches all unhandled exceptions
+- Logs structured error context (handler name, event, error)
+- Returns consistent error response shape
+- Emergency paths trigger 108 bridge fallback — the caller is never left without help
+- Non-emergency paths return a generic error response
+
 ## Data Models
 
 ### CallRecord
