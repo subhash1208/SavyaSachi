@@ -31,41 +31,19 @@
 
 ## 📁 Repository Structure
 
-```
+```text
 SavyaSachi/
-├── README.md (this file - Team info + Submission requirements)
-├── requirements.md (To be generated via Kiro)
-├── design.md (To be generated via Kiro)
-├── Presentation-Content/
-│   └── VaidyaVaani-Slide-Content-Guide.md (Complete PPT content mapping)
-├── VaidyaVaani/
-│   ├── VaidyaVaani-Final-Presentation.md (Complete presentation - 40 KB)
-│   ├── VaidyaVaani-Cost-Analysis.md (Detailed cost breakdown - 52 KB)
-│   ├── VaidyaVaani-Competitive-Analysis.md (Market analysis - 16 KB)
-│   ├── VaidyaVaani-Gap-Analysis-Improvements.md (Winning strategy + 12-day build plan)
-│   ├── VaidyaVaani-Enterprise-Readiness.md (Enterprise polish + Judge's playbook)
-│   ├── VaidyaVaani-Global-Health-Validation.md (Complete research & validation - 1,700+ lines)
-│   ├── UPDATES-FEB-12-2026.md (Latest updates & gap-filling improvements)
-│   ├── Data-Sources/
-│   │   └── VaidyaVaani-Data-Sources-Guide.md (13 verified govt/WHO data sources - 1121 lines)
-│   ├── Architectural-Diagrams/
-│   │   ├── README-Diagrams.md (Diagram explanations)
-│   │   ├── Location-Detection-Strategy.md (3-tier location capture for feature phones)
-│   │   ├── VaidyaVaani-Architecture.png (Complete system - 371 KB)
-│   │   ├── VaidyaVaani-Nova-Sonic-Architecture.png (Optimized - 174 KB)
-│   │   └── VaidyaVaani-Cost-Comparison.png (Visual breakdown - 140 KB)
-│   └── Research-and-Discussion/
-│       ├── README.md (Research guide + Final status)
-│       ├── IVR-Doctor-24x7-Idea.md (Original idea)
-│       ├── Global-Health-Tech-Success-Stories.md (Proven models)
-│       ├── NHS-111-Technical-Deep-Dive.md (Technical blueprint)
-│       └── VERIFICATION-REPORT.md (All claims verified)
-├── PashuRaksha/ (Alternative idea - Livestock AI)
-│   ├── README.md
-│   ├── Livestock-AI-Deep-Analysis.md
-│   └── Research-and-Discussion/
-│       └── Livestock-AI-Triage-Idea.md
-└── kiro chats/ (Development discussion history)
+├── README.md (this file - Project overview & requirements)
+├── docs/                 # Hackathon Project Documentation
+│   ├── strategy/         # Implementation Roadmap, AWS Setup, PR Rules
+│   ├── technical/        # Architecture Diagrams, Process Flows, Design Scripts
+│   ├── research/         # Global Health Validation & Sector Analysis
+│   ├── presentation/     # Slide Guides, Checklists, and Pitch Content
+│   ├── new_discussions/  # Post-Submission Analysis and Architecture Updates
+│   └── history/          # Historical chat logs and early ideas
+├── knowledge-base/       # Bedrock Knowledge Base Data
+│   └── data/             # Verified medical protocols (ICMR STWs, WHO docs)
+└── .gitignore            # Keeps the repo clean for upcoming code changes
 ```
 
 ---
