@@ -454,7 +454,7 @@ Result: Prevents ₹1.4L surgery
 
 ### Content:
 
-**Use the existing diagram:** `../Architectural-Diagrams/VaidyaVaani-Nova-Sonic-Architecture.png`
+**Use the existing diagram:** `../technical/VaidyaVaani-Nova-Sonic-Architecture.png`
 
 **Key Components to Highlight:**
 
