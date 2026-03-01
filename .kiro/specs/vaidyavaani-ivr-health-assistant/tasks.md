@@ -81,7 +81,17 @@ This plan implements VaidyaVaani as a serverless TypeScript application on AWS. 
     - Each entry includes: dose_child, dose_adult, max_daily, contraindications, pregnancy_category, renal_adjustment, source
     - `checkOverdose()` returns true for any drug with query_type "overdose" → triggers emergency path immediately
     - Drug queries filtered by `patient_profile.category` and `pregnancy_flag` from MasterExtractionResult
-    - _Requirements: 4.3 (drug safety), 3.1 (overdose = emergency)_
+    - _Requirements: 14.1, 14.2, 14.3, 14.4_
+
+  - [ ]* 4.2 Write property test for drug pregnancy filter
+    - **Property 19: Drug pregnancy filter correctness**
+    - For any drug query with `pregnancy_flag = "confirmed"` or `"possible"`, the response SHALL contain only pregnancy-safe guidance and SHALL NOT contain adult male dosage fields
+    - **Validates: Requirements 14.2**
+
+  - [ ]* 4.3 Write property test for drug not-found fallback
+    - **Property 20: Drug not-found safe fallback**
+    - For any drug name not present in the database, `queryDrug()` SHALL return a result with `not_found: true` and SHALL NOT throw an error or return null
+    - **Validates: Requirements 14.4**
 
 - [ ] 5. Checkpoint - Core routing, emergency scripts, and drug KB
   - Ensure all tests pass, ask the user if questions arise.
@@ -138,7 +148,7 @@ This plan implements VaidyaVaani as a serverless TypeScript application on AWS. 
     - Implement severity-to-facility mapping: critical → district_hospital/dispatch, urgent → CHC/district_hospital, non-urgent → home/PHC
     - Implement Bedrock API integration for Nova Pro (`us.amazon.nova-pro-v1:0`) with guardrails configuration
     - Implement input sanitization in `src/utils/inputSanitizer.ts` to prevent prompt injection
-    - _Requirements: 4.3, 4.4, 9.2, 9.3_
+    - _Requirements: 4.1, 4.3, 4.4, 9.2, 9.3_
 
   - [ ]* 9.2 Write property test for severity-to-facility mapping
     - **Property 4: Severity-to-facility mapping consistency**

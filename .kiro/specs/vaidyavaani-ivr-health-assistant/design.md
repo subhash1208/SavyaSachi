@@ -58,7 +58,7 @@ graph LR
     NS --> IR
     IR -->|Emergency Keywords<br/>DTMF 9<br/>Emotion Detection<br/>SOS Mode| EKB
     IR -->|Non-Emergency| GKB
-    EKB --> BR
+    EKB --> SF
     GKB --> BR
     BR --> SF
     SF --> DISP
@@ -1244,6 +1244,8 @@ type ActionType = "sms_treatment" | "dispatch_108" | "dispatch_102" | "hospital_
 type CallPurpose = "follow_up" | "chronic_checkin" | "missed_call_callback";
 
 type FollowUpPurpose = "acute_check" | "chronic_monitoring" | "post_emergency";
+
+type DrugQueryType = "safety" | "dosage" | "overdose" | "availability";
 ```
 
 ## Correctness Properties
@@ -1357,6 +1359,244 @@ type FollowUpPurpose = "acute_check" | "chronic_monitoring" | "post_emergency";
 *For any* valid DTMF key input, the `handleDTMF` function shall return the correct routing action: key 1 maps to Hindi, key 2 maps to English, key 9 maps to emergency, and other keys map to their defined actions. No valid DTMF key shall produce an undefined or null action.
 
 **Validates: Requirements 1.3**
+
+### Property 19: Drug pregnancy filter correctness
+
+*For any* drug query where `pregnancy_flag = "confirmed"` or `"possible"`, the `queryDrug()` function shall return a result containing only pregnancy-safe guidance fields (`pregnancy_category`, `contraindications`) and SHALL NOT return adult male dosage fields (`dose_adult`, `max_daily_adult`) in the filtered response.
+
+**Validates: Requirements 14.2**
+
+### Property 20: Drug not-found safe fallback
+
+*For any* drug name not present in the database, `queryDrug()` shall return a result with `not_found: true` and a safe fallback message. It SHALL NOT throw an error, return null, or attempt LLM generation for the missing drug information.
+
+**Validates: Requirements 14.4**
+
+## Supporting Types
+
+These types are used in interfaces and data models above. They are intentionally minimal — most are simple aliases or thin interfaces. Developers implementing `src/models/types.ts` must define all of these.
+
+```typescript
+// --- Speech & Audio ---
+type AudioStream = Buffer | ReadableStream;          // Raw audio bytes from Twilio/Connect
+type TranscribedText = string;                       // Output of STT (Transcribe / Nova Sonic)
+
+// --- IVR Session ---
+interface CallSession {
+  callId: string;
+  callerNumber: string;
+  startTime: string;                                 // ISO 8601
+  language: Language;
+  status: "active" | "completed" | "dropped";
+}
+
+type DTMFAction = "emergency" | "english" | "hindi" | "repeat" | "unknown";
+
+// --- Emotion Detection ---
+interface EmotionResult {
+  emotion: "panic" | "distress" | "calm" | "unknown";
+  confidence: number;                                // 0.0 - 1.0
+}
+
+// --- Conversation Context (used in mid-call danger sign monitoring) ---
+interface ConversationContext {
+  callId: string;
+  turn: number;
+  triagePath: "emergency" | "general" | "drug" | "unknown";
+  transcriptHistory: string[];                       // All utterances so far
+  dangerSignsDetected: string[];
+  patientProfile: PatientProfile | null;
+  masterExtraction: MasterExtractionResult | null;
+}
+
+// --- Triage Agent types ---
+interface SymptomInput {
+  clinicalSymptomsEnglish: string[];                 // From MasterExtractionResult
+  patientProfile: PatientProfile;
+  conditionId: string;
+  duration: string | null;
+  dangerSignsPresent: string[];
+}
+
+interface KBResults {
+  chunks: string[];                                  // Retrieved KB text chunks
+  sources: string[];                                 // Source document names
+  relevanceScores: number[];
+}
+
+interface TriageAssessment {
+  conditionId: string;
+  icd10Code: string;
+  severity: "critical" | "urgent" | "non-urgent";
+  recommendedCareLevel: "home" | "PHC" | "CHC" | "district_hospital";
+  summaryHindi: string;
+  summaryEnglish: string;
+  followUpRequired: boolean;
+  followUpInterval?: string;                         // "2h", "24h", "1w"
+}
+
+interface TreatmentAdvice {
+  instructions: BilingualInstruction[];
+  disclaimer: BilingualInstruction;
+}
+
+type ICD10Code = string;                             // e.g., "I21.9", "A90", "T63.0"
+
+type SeverityLevel = "critical" | "urgent" | "non-urgent";
+
+// --- Triage KB ---
+interface TriageResponse {
+  chunks: string[];                                  // Retrieved KB chunks
+  generatedResponse: string;                         // Nova Pro formatted response
+  followUpQuestion?: string;
+  severity: SeverityLevel;
+}
+
+type TriageOutcome = "emergency_dispatched" | "general_triage_complete" | "drug_query_resolved" | "referred_to_facility" | "home_care_advised" | "incomplete";
+
+// --- Emergency KB ---
+type ABCDEScript = EmergencyScript["abcdeAssessment"];  // Alias for the ABCDE sub-object
+
+interface DispatchInfo {
+  dispatchType: "108" | "102";
+  dispatchNumber: string;                            // "108" or "102"
+  messageHindi: string;                              // What to tell the dispatcher
+  messageEnglish: string;
+}
+
+// --- Location types (Tier 1/2/3 return types) ---
+type Tier1Location = NonNullable<LocationData["tier1Voice"]>;
+type Tier2Location = LocationData["tier2Phone"];
+type Tier3Location = NonNullable<LocationData["tier3GPS"]>;
+
+interface ResolvedLocation {
+  primaryLocation: string;
+  accuracyLevel: LocationData["accuracyLevel"];
+  tier1?: Tier1Location;
+  tier2: Tier2Location;
+  tier3?: Tier3Location;
+}
+
+// --- Hospital & Facility ---
+interface Hospital {
+  hospitalId: string;
+  name: string;
+  address: string;
+  phone: string;
+  location: { latitude: number; longitude: number };
+  facilityLevel: FacilityLevel;
+  distanceKm?: number;                               // Populated by getHospitalsInRadius
+}
+
+interface Facility {
+  facilityId: string;
+  name: string;
+  address: string;
+  phone: string;
+  facilityLevel: FacilityLevel;
+  distanceKm?: number;
+}
+
+interface FacilityCapabilities {
+  facilityId: string;
+  facilityLevel: FacilityLevel;
+  hasICU: boolean;
+  hasBloodBank: boolean;
+  hasSurgery: boolean;
+  hasMaternity: boolean;
+  hasPediatrics: boolean;
+  bedCount: number;
+}
+
+interface AcceptanceConfirmation {
+  hospitalId: string;
+  emergencyId: string;
+  acceptedAt: string;                                // ISO 8601
+  estimatedArrival: string;
+  bedNumber?: string;
+}
+
+// --- ASHA Worker ---
+interface PatientSummary {
+  callId: string;
+  conditionId: string;
+  icd10Code: string;
+  severity: SeverityLevel;
+  location: LocationData;
+  treatmentSummaryHindi: string;
+}
+
+interface MonitoringChecklist {
+  condition: ChronicCondition;
+  items: string[];                                   // e.g., ["Check blood sugar weekly", "Record BP daily"]
+  frequency: "daily" | "weekly" | "biweekly";
+  alertThresholds: string[];                         // e.g., ["Blood sugar > 300 mg/dL → call VaidyaVaani"]
+}
+
+// --- Disease Surveillance ---
+interface AggregatedData {
+  timeWindowDays: number;
+  records: Array<{
+    icd10Code: string;
+    district: string;
+    state: string;
+    count: number;
+  }>;
+}
+
+// --- Action Orchestrator ---
+interface ActionResults {
+  smsSent: boolean;
+  dispatchResult?: DispatchResult;
+  ashaAlerted: boolean;
+  followUpScheduled: boolean;
+  referralFacility?: Facility;
+  surveillanceLogged: boolean;
+}
+
+// --- Multimodal Vision ---
+type ImageData = Buffer | string;                    // Raw bytes or base64-encoded image
+
+interface TriageContext {
+  conditionId: string;
+  patientProfile: PatientProfile;
+  symptomsEnglish: string[];
+}
+
+interface VisualAssessment {
+  description: string;
+  severity: SeverityLevel;
+  confidence: number;
+  recommendations: string[];
+}
+
+interface SnakeIdentification {
+  speciesName: string | null;                        // "Indian Cobra", "Russell's Viper", etc.
+  isVenomous: boolean | null;
+  confidence: number;
+  antivenomRequired: boolean;
+}
+
+interface WoundAssessment {
+  woundType: string;                                 // "laceration", "burn", "bite", etc.
+  severity: SeverityLevel;
+  infectionRisk: "low" | "moderate" | "high";
+  recommendations: string[];
+}
+
+// --- Misc ---
+type Duration = string;                              // ISO 8601 duration or human-readable: "2h", "24h", "1w"
+type ScheduleId = string;                            // EventBridge schedule ARN or ID
+type S3Key = string;                                 // S3 object key path
+type RedactedCallRecord = Omit<CallRecord, "callerNumber"> & { callerNumber: "[REDACTED]" };
+
+interface KeywordMatch {
+  matched: boolean;
+  keyword: string | null;
+  conditionId: string | null;                        // "cardiac", "snakebite", etc.
+  language: Language;
+}
+```
 
 ## Error Handling
 
