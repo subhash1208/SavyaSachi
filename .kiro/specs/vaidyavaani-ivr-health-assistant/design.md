@@ -85,13 +85,17 @@ The routing pipeline uses a **3-stage cascade** to balance speed and accuracy:
 graph TD
     INPUT[Caller Voice Input] --> DTMF{DTMF Key 9?}
     DTMF -->|Yes| EMERGENCY[Emergency KB]
-    DTMF -->|No| KW{Stage 1: Keyword Scan<br/>5ms, Lambda only}
-    KW -->|Match + High Confidence| EMERGENCY
-    KW -->|No Match| NL[Stage 2: Nova Lite<br/>Master Extraction<br/>~150ms]
+    DTMF -->|No| PARALLEL[Fire in Parallel via Promise.race]
+    PARALLEL --> KW[Stage 1: Keyword Scan<br/>5ms, Lambda only<br/>short utterances ≤4 words]
+    PARALLEL --> NL[Stage 2: Nova Lite<br/>Master Extraction<br/>~150ms, all utterances]
+    KW -->|Emergency match wins race| EMERGENCY
+    KW -->|No match — Nova Lite result used| JSON
     NL --> JSON{Parse Extraction JSON<br/>is_emergency + confidence}
     JSON -->|is_emergency=true<br/>confidence >= 0.7| EMERGENCY
-    JSON -->|is_emergency=true<br/>confidence < 0.7| SAFETY[Nova Pro Safety Check<br/>~2s]
+    JSON -->|is_emergency=true<br/>confidence < 0.7| SAFETY[Stage 3: Nova Pro Safety Check<br/>~2s, low-confidence only]
     SAFETY --> EMERGENCY
+    JSON -->|drugs_mentioned overdose| EMERGENCY
+    JSON -->|drugs_mentioned safety/dosage| DRUG[Drug KB<br/>DynamoDB filtered query]
     JSON -->|is_emergency=false| TRIAGE[General Triage KB<br/>with Metadata Filter]
     EMERGENCY --> DDB_FETCH[DynamoDB Script Fetch<br/>by condition_id + patient_category<br/>5ms]
     DDB_FETCH --> SCRIPT[Read Deterministic Script<br/>Verbatim — Zero LLM]
@@ -191,7 +195,7 @@ graph TD
 
 ## Components and Interfaces
 
-### 1. IVR_System (Amazon Connect)
+### 1. IVR_System (Prototype: Twilio / Production: Amazon Connect)
 
 **Responsibility:** Manages all inbound/outbound calls, DTMF handling, call routing, and missed call callback.
 
@@ -202,6 +206,67 @@ graph TD
 - `bridgeCall(callId: string, targetNumber: string): void` — Bridges caller to 108 dispatcher
 - `initiateOutboundCall(targetNumber: string, purpose: CallPurpose): CallSession` — For follow-ups
 - `handleMissedCall(callerNumber: string): void` — Triggers callback for zero-cost access
+
+#### Twilio TwiML Webhook Flow (Prototype)
+
+Every Twilio webhook call is stateless HTTP. The conversation state must be persisted externally between turns. Here is the complete request/response cycle:
+
+```
+Turn 1 — Incoming call:
+  Twilio POST → API Gateway → Lambda
+  Body: CallSid, From, To, CallStatus="ringing"
+  Lambda returns TwiML:
+    <Response>
+      <Say voice="Polly.Aditi">VaidyaVaani. Apni takleef batayein. For English, press 2.</Say>
+      <Gather input="speech dtmf" timeout="5" speechTimeout="auto"
+              action="/gather" method="POST" language="hi-IN">
+      </Gather>
+    </Response>
+
+Turn 2 — Caller speaks or presses key:
+  Twilio POST → API Gateway → Lambda (/gather endpoint)
+  Body: CallSid, SpeechResult="seene mein dard hai", Digits="" (or vice versa)
+  Lambda:
+    1. Load ConversationState from DynamoDB by CallSid
+    2. Run intent routing (keyword scan + Nova Lite in parallel)
+    3. Route to Emergency KB or General Triage KB
+    4. Save updated ConversationState to DynamoDB
+    5. Return TwiML with next response + next <Gather>
+
+Turn N — Conversation continues:
+  Same pattern. CallSid is the session key throughout.
+  ConversationState in DynamoDB tracks: turn number, triage path, ABCDE step, language.
+
+Call end:
+  Twilio POST → /status endpoint
+  Body: CallSid, CallStatus="completed"
+  Lambda: finalize CallRecord, trigger Step Functions for post-triage actions
+```
+
+**ConversationState DynamoDB schema:**
+```json
+{
+  "callSid": "CA1234567890abcdef",        // PK — Twilio's unique call ID
+  "ttl": 1234567890,                       // Unix epoch + 1 hour (auto-cleanup)
+  "turn": 2,                               // Current turn number
+  "language": "hindi",                     // Selected language
+  "triagePath": "emergency | general | drug | unknown",
+  "abcdeStep": "airway | breathing | circulation | disability | exposure | null",
+  "conditionId": "cardiac | snakebite | ...",
+  "patientProfile": { "category": "adult", "pregnancy_flag": "not_applicable" },
+  "masterExtraction": { ... },             // Full MasterExtractionResult from Turn 2
+  "dangerSignsDetected": [],
+  "locationCollected": false,
+  "callStartTime": "2026-03-01T10:00:00Z"
+}
+```
+
+**Key rules:**
+- `callSid` is the session key — Twilio sends it on every webhook POST
+- State is loaded at the start of every Lambda invocation and saved at the end
+- TTL = 1 hour — auto-cleans abandoned calls, no manual cleanup needed
+- Master Extraction runs once (Turn 2) and is cached in state for all subsequent turns
+- ABCDE step tracker enables the emergency script to advance one step per turn
 
 ### 2. Speech_Engine (Prototype: Amazon Polly Aditi / Production: Nova 2 Sonic)
 
@@ -230,6 +295,8 @@ graph TD
 
 > ⚠️ **False Positive Guard:** Keyword scan is ONLY applied to short utterances (≤ 4 words) or single-phrase panic inputs (e.g., "Heart attack!", "Saanp kaata!"). Full sentences route directly to Stage 2 (Nova Lite) because Nova Lite understands negation ("nahi"), past tense ("tha"), and third-party references ("mere bhai ko"). Over-triaging a negation ("seene mein dard nahi hai") as an emergency damages caller trust and wastes resources.
 
+> **Known tradeoff — 4-word threshold:** The threshold is intentionally conservative. A clear emergency phrase like "heart attack ho raha hai mujhe" (6 words) bypasses keyword scan and waits ~150ms for Nova Lite. This is acceptable — 150ms is imperceptible on a phone call, and Nova Lite correctly classifies it as emergency. The risk of a false negative (missing an emergency) from keyword scan is lower than the risk of a false positive (routing a negation to emergency). The threshold can be tuned upward (e.g., 6 words) if testing shows too many clear emergencies missing the fast path.
+
 | Condition | Hindi | English | Hinglish |
 |---|---|---|---|
 | cardiac | seene mein dard, dil ka dora | chest pain, heart attack | heart attack ho raha |
@@ -240,6 +307,8 @@ graph TD
 **Stage 2 — Nova Lite Master Extraction (150ms) — runs in parallel with Stage 1:**
 
 > ⚡ **Promise.race() pattern:** Keyword scan AND Nova Lite call are fired simultaneously at utterance arrival. If keyword scan wins (emergency match), Nova Lite promise is abandoned. If keyword scan returns null, Nova Lite result is already ~145ms in progress. This squeezes maximum latency out of the pipeline.
+
+> ⚠️ **Race condition rule:** `Promise.race()` resolves on whichever promise settles first. But if Nova Lite returns `is_emergency=false` before the keyword scan completes (e.g., Lambda cold start delays the keyword scan), the keyword scan result must still be awaited and checked. The rule is: **a non-emergency result from Nova Lite is only accepted as final once the keyword scan has also completed and returned null.** An emergency result from either source wins immediately. Implementation: use `Promise.race()` for emergency detection only — if the winner says emergency, act immediately. If the winner says non-emergency, `await` the other promise before proceeding.
 
 Single Nova Lite call returns `MasterExtractionResult` JSON. Nova Lite understands negation, past tense, and third-party references — safe for full sentences.
 
@@ -270,7 +339,7 @@ Utterance: "{caller_text}"
 Rules:
 - is_emergency=true ONLY for active, present-tense emergencies
 - If caller says "nahi" (no) or past tense, is_emergency=false
-- drugs_mentioned overdose → always set is_emergency=true
+- If drugs_mentioned contains query_type "overdose", set condition_id = "drug_query" — the router handles emergency routing via the overdose check, not via is_emergency
 - condition_id = "drug_query" when caller asks about a drug with no other symptoms
 - confidence < 0.7 if utterance is ambiguous
 ```
@@ -334,6 +403,13 @@ Rules:
 - `overdose` → Emergency path immediately (before any other routing)
 - `safety | dosage` → Drug DB query filtered by `patient_profile.category` and `pregnancy_flag`
 - `availability` → NLEM lookup
+
+**Drug not found — fallback behavior:**
+If `queryDrug()` returns no result (drug not in the hackathon scope of 7 entries, or not in NLEM), the system SHALL NOT attempt LLM generation for drug information. Instead:
+- Return a structured "not found" response
+- Triage_Agent delivers: "Is dawai ke baare mein mujhe puri jaankari nahi hai. Kripya kisi pharmacist ya doctor se poochein." (I don't have complete information about this medicine. Please consult a pharmacist or doctor.)
+- Log the unknown drug name to DynamoDB for future KB expansion
+- Continue the call — do not terminate or error
 
 ### 6. General_Triage_KB (Bedrock Knowledge Base + OpenSearch Serverless)
 
@@ -447,7 +523,7 @@ Example item:
 - `executeLayer3(emergency: EmergencyData, location: LocationData): DispatchResult` — SMS + ASHA fallback
 - `bridgeTo108(callId: string, assessmentSummary: string): void` — Connect caller to 108
 
-### 8. Location_Detector (AWS Lambda)
+### 9. Location_Detector (AWS Lambda)
 
 **Responsibility:** 3-tier location detection for feature phones.
 
@@ -460,7 +536,7 @@ Example item:
 
 **STD Code Database:** 600+ Indian STD codes mapped to district/city/state.
 
-### 9. Action_Orchestrator (AWS Step Functions)
+### 10. Action_Orchestrator (AWS Step Functions)
 
 **Responsibility:** Parallel execution of all post-triage agentic actions.
 
@@ -468,7 +544,7 @@ Example item:
 - `orchestrateActions(triageResult: TriageResult, location: LocationData): ActionResults` — Main orchestration
 - Internally triggers: SMS, dispatch, ASHA alerts, follow-up scheduling, referral, surveillance logging — all in parallel
 
-### 10. Hospital_Dashboard (AWS Amplify + API Gateway + Lambda)
+### 11. Hospital_Dashboard (AWS Amplify + API Gateway + Lambda)
 
 **Responsibility:** Web interface for hospitals to receive and accept emergency patient notifications.
 
@@ -477,7 +553,7 @@ Example item:
 - `acceptPatient(hospitalId: string, emergencyId: string): AcceptanceConfirmation` — Hospital accepts
 - `getHospitalsInRadius(location: LocationData, radiusKm: number): Hospital[]` — Find nearby hospitals
 
-### 11. Follow_Up_Scheduler (Amazon EventBridge + Lambda)
+### 12. Follow_Up_Scheduler (Amazon EventBridge + Lambda)
 
 **Responsibility:** Schedules and triggers follow-up callbacks.
 
@@ -486,7 +562,7 @@ Example item:
 - `triggerFollowUp(scheduleId: string): void` — Execute scheduled callback
 - `cancelFollowUp(scheduleId: string): void` — Cancel if no longer needed
 
-### 12. Call_Logger (DynamoDB + S3)
+### 13. Call_Logger (DynamoDB + S3)
 
 **Responsibility:** Persists all call data, recordings, and triage outcomes with PII redaction.
 
@@ -496,7 +572,13 @@ Example item:
 - `redactPII(record: CallRecord): RedactedCallRecord` — Remove PII before storage
 - `generateFHIRRecord(triageResult: TriageResult): FHIRCondition` — Create FHIR JSON
 
-### 13. Disease_Surveillance_Agent (Lambda + QuickSight)
+**Data Retention Policy (DPDP Act 2023 compliance):**
+- DynamoDB call records: TTL = 90 days from call timestamp. Set via `ttl` attribute (Unix epoch) on every item at write time.
+- S3 call recordings: Lifecycle policy — transition to S3 Glacier after 30 days, delete after 90 days.
+- Anonymised aggregate data (QuickSight/surveillance): retained indefinitely — no PII, no TTL.
+- FHIR records linked to ABHA_ID: retained per ABDM guidelines (patient-controlled, not auto-deleted).
+
+### 14. Disease_Surveillance_Agent (Lambda + QuickSight)
 
 **Responsibility:** Detects outbreak patterns from aggregated call data.
 
@@ -505,7 +587,7 @@ Example item:
 - `detectAnomaly(aggregatedData: AggregatedData, threshold: number): OutbreakAlert[]` — Spike detection
 - `alertDHO(alert: OutbreakAlert): void` — Notify District Health Officer via dashboard
 
-### 14. ASHA_Worker_Agent (Lambda + SNS)
+### 15. ASHA_Worker_Agent (Lambda + SNS)
 
 **Responsibility:** Alerts ASHA workers for emergency cases and assigns them to chronic care patients.
 
@@ -514,7 +596,7 @@ Example item:
 - `assignChronicCare(patientId: string, condition: ChronicCondition, ashaWorkerId: string): void` — Chronic enrollment
 - `sendMonitoringChecklist(ashaWorkerId: string, checklist: MonitoringChecklist): void` — Send monitoring instructions
 
-### 15. Multimodal_Vision_Agent (Lambda + Bedrock Claude Vision)
+### 16. Multimodal_Vision_Agent (Lambda + Bedrock Claude Vision)
 
 **Responsibility:** Analyzes photos sent via WhatsApp for visual assessment.
 
@@ -523,7 +605,7 @@ Example item:
 - `identifySnakeSpecies(imageData: ImageData): SnakeIdentification` — Big Four identification
 - `assessWound(imageData: ImageData): WoundAssessment` — Wound severity
 
-### 16. Referral_Agent (Lambda + DynamoDB)
+### 17. Referral_Agent (Lambda + DynamoDB)
 
 **Responsibility:** Finds nearest appropriate healthcare facility based on condition and location.
 
@@ -682,6 +764,19 @@ export interface IHospitalDashboard {
   acceptPatient(hospitalId: string, emergencyId: string): Promise<AcceptanceConfirmation>;
   getHospitalsInRadius(location: LocationData, radiusKm: number): Promise<Hospital[]>;
 }
+
+// src/interfaces/IDrugKB.ts
+export interface IDrugKB {
+  queryDrug(drugName: string, queryType: DrugQueryType, patientProfile: PatientProfile): Promise<DrugInfo>;
+  checkOverdose(drugName: string): boolean;  // true → route to Emergency_KB immediately
+}
+
+// src/interfaces/IConversationStateRepository.ts
+export interface IConversationStateRepository {
+  load(callSid: string): Promise<ConversationState | null>;
+  save(state: ConversationState): Promise<void>;
+  delete(callSid: string): Promise<void>;
+}
 ```
 
 All interfaces are exported from a barrel file at `src/interfaces/index.ts`.
@@ -783,6 +878,22 @@ export function withErrorHandler<TEvent, TResult>(
 
 ## Data Models
 
+### PatientProfile
+
+```typescript
+// Standalone type — used in MasterExtractionResult and as IDrugKB.queryDrug() parameter
+interface PatientProfile {
+  category: "pediatric" | "adult" | "maternal" | "geriatric" | "unknown";
+  exact_age_mentioned: string | null;   // "2 years", "45 saal", null
+  pregnancy_flag: "confirmed" | "possible" | "not_applicable" | "unknown";
+}
+```
+
+**Used by:**
+- `MasterExtractionResult.patient_profile` — populated by Nova Lite extraction
+- `IDrugKB.queryDrug(drugName, queryType, patientProfile)` — filters drug results by category + pregnancy_flag
+- `IGeneralTriageKB.queryTriage()` — metadata filter source for Bedrock KB queries
+
 ### DrugInfo
 
 ```typescript
@@ -797,6 +908,7 @@ interface DrugInfo {
   pregnancy_category: string;        // "B — generally safe"
   renal_adjustment?: string;         // "reduce dose in severe CKD"
   source: string;                    // "India NLEM 2022"
+  not_found?: boolean;               // true when drug is not in DB — triggers safe fallback response
 }
 ```
 
@@ -860,6 +972,7 @@ interface MasterExtractionResult {
 interface CallRecord {
   callId: string;                    // Unique call identifier (e.g., "VV-2026-001234")
   timestamp: string;                 // ISO 8601 timestamp
+  ttl: number;                       // Unix epoch — DynamoDB TTL, set to timestamp + 90 days
   callerNumber: string;              // Redacted phone number
   callSourceType: "mobile" | "landline" | "unknown";
   language: Language;
@@ -875,6 +988,33 @@ interface CallRecord {
   fhirRecord: FHIRCondition;        // FHIR JSON for ABDM
 }
 ```
+
+### ConversationState
+
+```typescript
+// Persisted in DynamoDB by callSid between Twilio webhook turns
+interface ConversationState {
+  callSid: string;                   // PK — Twilio's unique call ID (e.g., "CA1234567890abcdef")
+  ttl: number;                       // Unix epoch + 3600s — DynamoDB auto-cleanup for abandoned calls
+  turn: number;                      // Current turn number (starts at 1)
+  language: Language;                // Selected language (default: "hindi")
+  triagePath: "emergency" | "general" | "drug" | "unknown";
+  abcdeStep: "airway" | "breathing" | "circulation" | "disability" | "exposure" | null;
+  conditionId: string | null;        // Locked after Master Extraction
+  patientProfile: PatientProfile | null;
+  masterExtraction: MasterExtractionResult | null;  // Cached after Turn 2, reused for all subsequent turns
+  dangerSignsDetected: string[];     // Accumulates mid-call danger signs
+  locationCollected: boolean;
+  callStartTime: string;             // ISO 8601
+}
+```
+
+**State lifecycle:**
+- Created on Turn 1 (incoming call) with `triagePath: "unknown"`, `turn: 1`
+- Master Extraction runs on Turn 2 and result is cached — never re-run
+- ABCDE step advances one step per turn on the emergency path
+- TTL = 1 hour from call start — auto-cleans abandoned calls, no manual cleanup
+- Deleted (or TTL expires) after call end webhook is received
 
 ### LocationData
 
@@ -1138,7 +1278,7 @@ type FollowUpPurpose = "acute_check" | "chronic_monitoring" | "post_emergency";
 
 *For any* valid triage result, serializing it to FHIR JSON format and then parsing the FHIR JSON back shall produce an equivalent ICD-10 code, condition display name, and severity classification.
 
-**Validates: Requirements 4.5, 8.6**
+**Validates: Requirements 4.5, 8.7**
 
 ### Property 6: Hospital selection within radius
 
@@ -1192,7 +1332,7 @@ type FollowUpPurpose = "acute_check" | "chronic_monitoring" | "post_emergency";
 
 *For any* set of call records where a specific ICD-10 code appears more than the threshold number of times within a geographic cluster (same district) and time window, the `detectAnomaly` function shall flag at least one OutbreakAlert for that condition and location.
 
-**Validates: Requirements 8.4**
+**Validates: Requirements 8.5**
 
 ### Property 15: Input sanitization
 

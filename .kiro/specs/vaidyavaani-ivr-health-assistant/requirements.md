@@ -150,9 +150,10 @@ VaidyaVaani (वैद्यवाणी - "Doctor's Voice") is an AI-powered IV
 1. WHEN a call ends, THE Call_Logger SHALL persist the complete call record to DynamoDB including call duration, triage outcome, ICD-10 code, severity classification, dispatch type (108/102/none), actions taken, and location data (village, district, state, GPS if available)
 2. WHEN call recordings are generated, THE Call_Logger SHALL store recordings in Amazon S3 with encryption via AWS KMS
 3. THE Call_Logger SHALL redact all Personally Identifiable Information before storing call records in compliance with the DPDP_Act 2023
-4. WHEN call pattern data is aggregated by ICD-10 code and geographic location, THE Disease_Surveillance_Agent SHALL detect anomalous spikes in specific conditions within geographic clusters (e.g., "23 calls with ICD-10 A90 Dengue from Khedi village in 3 days") and flag potential outbreaks
-5. WHEN an outbreak is flagged, THE Disease_Surveillance_Agent SHALL alert the District Health Officer via the analytics dashboard (Amazon QuickSight) with a geographic heatmap and condition breakdown
-6. THE Call_Logger SHALL store all triage records in FHIR JSON format with ICD-10 codes for ABDM interoperability and future ABHA_ID linking
+4. THE Call_Logger SHALL set a DynamoDB TTL of 90 days on every call record at write time, and SHALL apply an S3 lifecycle policy to transition recordings to Glacier after 30 days and delete after 90 days, in compliance with the DPDP_Act 2023 data minimisation principle. Anonymised aggregate data used for disease surveillance SHALL be retained indefinitely.
+5. WHEN call pattern data is aggregated by ICD-10 code and geographic location, THE Disease_Surveillance_Agent SHALL detect anomalous spikes in specific conditions within geographic clusters (e.g., "23 calls with ICD-10 A90 Dengue from Khedi village in 3 days") and flag potential outbreaks
+6. WHEN an outbreak is flagged, THE Disease_Surveillance_Agent SHALL alert the District Health Officer via the analytics dashboard (Amazon QuickSight) with a geographic heatmap and condition breakdown
+7. THE Call_Logger SHALL store all triage records in FHIR JSON format with ICD-10 codes for ABDM interoperability and future ABHA_ID linking
 
 ### Requirement 9: Ensure System Reliability, Safety, and Security
 
