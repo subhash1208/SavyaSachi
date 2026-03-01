@@ -1,0 +1,118 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.3.6 Chrome/140.0.7339.249 Electron/38.8.0 Safari/537.36" version="29.3.6">
+  <diagram name="Problem-Solution" id="problem-solution">
+    <mxGraphModel dx="1670" dy="1132" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" background="#ffffff" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="header-problem" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CC0000;strokeColor=#990000;strokeWidth=2;fontColor=#FFFFFF;fontSize=20;fontStyle=1;align=center;" value="PROBLEM" vertex="1">
+          <mxGeometry height="50" width="500" x="300" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="header-solution" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#00AA44;strokeColor=#008833;strokeWidth=2;fontColor=#FFFFFF;fontSize=20;fontStyle=1;align=center;" value="SOLUTION" vertex="1">
+          <mxGeometry height="50" width="500" x="1120" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="problem1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CC0000;strokeWidth=2;fontColor=#CC0000;fontSize=18;fontStyle=1;align=center;" value="No Doctor at 2 AM" vertex="1">
+          <mxGeometry height="60" width="500" x="300" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow1" edge="1" parent="1" source="problem1" style="endArrow=classic;html=1;strokeWidth=4;strokeColor=#666666;" target="solution1" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="800" y="250" as="sourcePoint" />
+            <mxPoint x="1120" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="solution1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#00AA44;strokeWidth=2;fontColor=#00AA44;fontSize=18;fontStyle=1;align=center;" value="AI Triage 24/7&#xa;(Bedrock + ICMR)" vertex="1">
+          <mxGeometry height="60" width="500" x="1120" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="problem2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CC0000;strokeWidth=2;fontColor=#CC0000;fontSize=18;fontStyle=1;align=center;" value="Can&#39;t Afford Smartphone" vertex="1">
+          <mxGeometry height="60" width="500" x="300" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow2" edge="1" parent="1" source="problem2" style="endArrow=classic;html=1;strokeWidth=4;strokeColor=#666666;" target="solution2" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="800" y="330" as="sourcePoint" />
+            <mxPoint x="1120" y="330" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="solution2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#00AA44;strokeWidth=2;fontColor=#00AA44;fontSize=18;fontStyle=1;align=center;" value="Works on ₹1,500&#xa;Feature Phone" vertex="1">
+          <mxGeometry height="60" width="500" x="1120" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="problem3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CC0000;strokeWidth=2;fontColor=#CC0000;fontSize=18;fontStyle=1;align=center;" value="No Internet in Village" vertex="1">
+          <mxGeometry height="60" width="500" x="300" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow3" edge="1" parent="1" source="problem3" style="endArrow=classic;html=1;strokeWidth=4;strokeColor=#666666;" target="solution3" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="800" y="410" as="sourcePoint" />
+            <mxPoint x="1120" y="410" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="solution3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#00AA44;strokeWidth=2;fontColor=#00AA44;fontSize=18;fontStyle=1;align=center;" value="Pure Voice Call&#xa;(No data needed)" vertex="1">
+          <mxGeometry height="60" width="500" x="1120" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="problem4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CC0000;strokeWidth=2;fontColor=#CC0000;fontSize=18;fontStyle=1;align=center;" value="Can&#39;t Read/Write" vertex="1">
+          <mxGeometry height="60" width="500" x="300" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow4" edge="1" parent="1" source="problem4" style="endArrow=classic;html=1;strokeWidth=4;strokeColor=#666666;" target="solution4" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="800" y="490" as="sourcePoint" />
+            <mxPoint x="1120" y="490" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="solution4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#00AA44;strokeWidth=2;fontColor=#00AA44;fontSize=18;fontStyle=1;align=center;" value="Voice-Only Interface&#xa;(No literacy required)" vertex="1">
+          <mxGeometry height="60" width="500" x="1120" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="problem5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CC0000;strokeWidth=2;fontColor=#CC0000;fontSize=18;fontStyle=1;align=center;" value="Don&#39;t Know If Emergency" vertex="1">
+          <mxGeometry height="60" width="500" x="300" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow5" edge="1" parent="1" source="problem5" style="endArrow=classic;html=1;strokeWidth=4;strokeColor=#666666;" target="solution5" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="800" y="570" as="sourcePoint" />
+            <mxPoint x="1120" y="570" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="solution5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#00AA44;strokeWidth=2;fontColor=#00AA44;fontSize=18;fontStyle=1;align=center;" value="AI Assesses Severity&#xa;(Emergency vs Non-Emergency)" vertex="1">
+          <mxGeometry height="60" width="500" x="1120" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="problem6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CC0000;strokeWidth=2;fontColor=#CC0000;fontSize=18;fontStyle=1;align=center;" value="No Ambulance Coordination" vertex="1">
+          <mxGeometry height="60" width="500" x="300" y="620" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow6" edge="1" parent="1" source="problem6" style="endArrow=classic;html=1;strokeWidth=4;strokeColor=#666666;" target="solution6" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="800" y="650" as="sourcePoint" />
+            <mxPoint x="1120" y="650" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="solution6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#00AA44;strokeWidth=2;fontColor=#00AA44;fontSize=18;fontStyle=1;align=center;" value="Auto-Dispatch 108&#xa;(Automatic trigger)" vertex="1">
+          <mxGeometry height="60" width="500" x="1120" y="620" as="geometry" />
+        </mxCell>
+        <mxCell id="problem7" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CC0000;strokeWidth=2;fontColor=#CC0000;fontSize=18;fontStyle=1;align=center;" value="Forget Treatment Instructions" vertex="1">
+          <mxGeometry height="60" width="500" x="300" y="700" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow7" edge="1" parent="1" source="problem7" style="endArrow=classic;html=1;strokeWidth=4;strokeColor=#666666;" target="solution7" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="800" y="730" as="sourcePoint" />
+            <mxPoint x="1120" y="730" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="solution7" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#00AA44;strokeWidth=2;fontColor=#00AA44;fontSize=18;fontStyle=1;align=center;" value="SMS Sent Automatically&#xa;(ORS recipe, first-aid steps)" vertex="1">
+          <mxGeometry height="60" width="500" x="1120" y="700" as="geometry" />
+        </mxCell>
+        <mxCell id="problem8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CC0000;strokeWidth=2;fontColor=#CC0000;fontSize=18;fontStyle=1;align=center;" value="No Follow-up Care" vertex="1">
+          <mxGeometry height="60" width="500" x="300" y="780" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow8" edge="1" parent="1" source="problem8" style="endArrow=classic;html=1;strokeWidth=4;strokeColor=#666666;" target="solution8" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="800" y="810" as="sourcePoint" />
+            <mxPoint x="1120" y="810" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="solution8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#00AA44;strokeWidth=2;fontColor=#00AA44;fontSize=18;fontStyle=1;align=center;" value="AI Calls Back&#xa;(Checks if patient improved)" vertex="1">
+          <mxGeometry height="60" width="500" x="1120" y="780" as="geometry" />
+        </mxCell>
+        <mxCell id="separator" edge="1" parent="1" style="endArrow=none;html=1;strokeWidth=2;strokeColor=#CCCCCC;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="300" y="880" as="sourcePoint" />
+            <mxPoint x="1620" y="880" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
