@@ -2,16 +2,19 @@
 
 ## Introduction
 
-VaidyaVaani (वैद्यवाणी - "Doctor's Voice") is an AI-powered IVR health assistant designed for India's AI for Bharat 2026 Hackathon (Team: SavyaSachi). The system enables any Indian citizen to call from any phone (feature phone, smartphone, or landline) to receive instant health triage, symptom assessment, and emergency dispatch in Hindi or English, 24/7, without requiring internet access or literacy. The system uses a dual knowledge base architecture — a deterministic Emergency Protocol KB with zero hallucination risk and an intelligent RAG-based General Triage KB — powered entirely by AWS services including Amazon Connect, Amazon Nova 2 Sonic (speech-to-speech with Indian-accented voices), Amazon Bedrock (Claude 3.5 Sonnet), and AWS Step Functions for agentic orchestration. The prototype is built in a 3-tier strategy over 20 days post-shortlist, targeting 3 demo scenarios: heart attack emergency, child fever/dehydration, and disease surveillance dashboard.
+VaidyaVaani (वैद्यवाणी - "Doctor's Voice") is an AI-powered IVR health assistant designed for India's AI for Bharat 2026 Hackathon (Team: SavyaSachi). The system enables any Indian citizen to call from any phone (feature phone, smartphone, or landline) to receive instant health triage, symptom assessment, and emergency dispatch in Hindi or English, 24/7, without requiring internet access or literacy. The system uses a tiered knowledge architecture — a deterministic Emergency Protocol KB (DynamoDB scripts, zero hallucination), a structured Drug KB (DynamoDB, NLEM medicines), and an intelligent RAG-based General Triage KB — powered entirely by AWS services including Twilio IVR (prototype) / Amazon Connect (production), Amazon Polly Aditi voice (prototype) / Amazon Nova 2 Sonic (production), Amazon Bedrock (Nova Pro for triage, Nova Lite for master extraction), and AWS Step Functions for agentic orchestration. The prototype is built in a 3-tier strategy over 5 days post-shortlist, targeting 3 demo scenarios: heart attack emergency, child fever/dehydration, and disease surveillance dashboard.
 
 ## Glossary
 
-- **IVR_System**: The Interactive Voice Response system built on Amazon Connect that receives and manages incoming phone calls via a toll-free number
-- **Intent_Router**: A Lambda-based keyword/pattern matching component that classifies caller intent and routes to the appropriate knowledge base within 200ms (not an LLM call)
-- **Emergency_KB**: The Emergency Protocol Knowledge Base containing ~15 hand-crafted, deterministic emergency scripts following the WHO ABCDE framework, tagged with ICD-10 codes, with zero hallucination risk and response time under 1 second
-- **General_Triage_KB**: The General Triage Knowledge Base containing 50-200+ medical protocol documents using RAG over ICMR STWs, WHO IMAI/IMCI guidelines, and other government-approved sources, with response time of 1-3 seconds
-- **Speech_Engine**: Amazon Nova 2 Sonic providing unified speech-to-speech AI with Indian-accented voices (Arjun male voice / Kiara female voice) for Hindi and English, bundled within Amazon Connect
-- **Triage_Agent**: The AI agent powered by Amazon Bedrock (Claude 3.5 Sonnet) that assesses symptom severity using ICMR/WHO protocols
+- **IVR_System**: The Interactive Voice Response system. Prototype — Twilio (number: +1 507 776 8060, TwiML via Lambda + API Gateway). Production — Amazon Connect toll-free number.
+- **Master_Extraction**: A single Nova Lite call (~150ms) that converts raw caller speech into the locked `MasterExtractionResult` JSON — the unified routing contract for all downstream paths (Emergency_KB, Drug_KB, General_Triage_KB).
+- **CONFIDENCE_THRESHOLD**: Named constant `0.7`. If `is_emergency=true` and `confidence < CONFIDENCE_THRESHOLD`, Nova Pro safety check is triggered before DynamoDB fetch. Prevents low-confidence emergency misroutes.
+- **Intent_Router**: A Lambda-based 3-stage classification pipeline: Stage 1 keyword scan (5ms, no LLM), Stage 2 Nova Lite Master Extraction (~150ms, parallel with Stage 1 via Promise.race()), Stage 3 Nova Pro safety check (only for low-confidence emergencies). Routes to Emergency_KB, Drug_KB, or General_Triage_KB based on the locked MasterExtractionResult JSON schema.
+- **Emergency_KB**: The Emergency Protocol Knowledge Base — deterministic scripts stored in DynamoDB, retrieved by `condition_id` + `patient_category` composite key in ~5ms. Zero AI generation. Hackathon scope: 4 conditions (cardiac, snakebite, child_fever, breathing_difficulty). Production scope: 15 conditions.
+- **Drug_KB**: Structured DynamoDB table for NLEM drug queries. Queried when `drugs_mentioned` is non-empty in MasterExtractionResult. `overdose` query_type routes to emergency path immediately.
+- **General_Triage_KB**: The General Triage Knowledge Base containing 50-200+ medical protocol documents using RAG over ICMR STWs, WHO IMAI/IMCI guidelines, and other government-approved sources, with response time of 1-3 seconds. Uses metadata filtering by `patient_category` and `pregnancy_flag` to prevent cross-category hallucinations.
+- **Speech_Engine**: Prototype — Amazon Polly (Aditi Hindi neural voice) via Twilio TwiML. Production — Amazon Nova 2 Sonic with Indian-accented voices (Arjun male / Kiara female) via Amazon Connect.
+- **Triage_Agent**: The AI reasoning engine. Prototype — Amazon Nova Pro 1.0 (`us.amazon.nova-pro-v1:0`, AISPL-compatible). Production — Claude Sonnet 4.6 (blocked on AISPL via Marketplace — see BLOCKERS-AND-DECISIONS.md). Nova Lite 1.0 (`amazon.nova-lite-v1:0`) used for Master Extraction (~150ms).
 - **Emergency_Dispatch_Agent**: The agent responsible for triggering 108 ambulance dispatch with ABCDE assessment data and executing the 3-layer fallback chain
 - **Action_Orchestrator**: AWS Step Functions workflow that coordinates agentic actions (SMS, dispatch, alerts, follow-ups) in parallel
 - **Hospital_Dashboard**: A web interface (hosted on AWS Amplify) that blasts emergency notifications to nearby hospitals for bed acceptance confirmation
@@ -41,9 +44,13 @@ VaidyaVaani (वैद्यवाणी - "Doctor's Voice") is an AI-powered IV
 
 #### Acceptance Criteria
 
-1. WHEN a Caller dials the toll-free number, THE IVR_System SHALL answer the call and play a welcome greeting in Hindi with an option to switch to English (press 2) or other regional languages
+1. WHEN a Caller dials the toll-free number, THE IVR_System SHALL answer the call and play a greeting that is pure Hindi by default, with a single English escape option. The `<Gather>` SHALL begin listening for speech and keypresses immediately — callers do not need to wait for the greeting to finish before speaking.
+   - Prototype greeting: "VaidyaVaani. Apni takleef batayein. For English, press 2."
+   - Target total audio duration: ≤2.5 seconds
+   - Default language: Hindi — no keypress needed, caller just speaks
+   - DTMF 9 remains a silent emergency override (works at any point in the call) but is NOT announced in the greeting — rural callers in panic will speak naturally, and the Master Extraction pipeline handles emergency detection from voice
 2. WHEN a Caller is connected, THE Speech_Engine SHALL process voice input and generate responses using Indian-accented voices (Arjun or Kiara) in Hindi or English
-3. WHEN a Caller presses a DTMF key during the call, THE IVR_System SHALL interpret the keypress and route accordingly (press 2 for English, press 9 for emergency)
+3. WHEN a Caller presses a DTMF key during the call, THE IVR_System SHALL interpret the keypress and route accordingly: press 9 for emergency (silent override — works at any point, not announced in greeting), press 2 for English
 4. IF the Speech_Engine fails to process audio input, THEN THE IVR_System SHALL fall back to DTMF-based menu navigation and inform the Caller of the fallback mode
 5. WHEN a call is received, THE Call_Logger SHALL record the call start time, caller phone number (redacted for privacy), and call source type in DynamoDB
 6. WHEN a Caller initiates a missed call to the toll-free number, THE IVR_System SHALL call the Caller back automatically to provide zero-cost access for users with no phone balance
@@ -54,13 +61,21 @@ VaidyaVaani (वैद्यवाणी - "Doctor's Voice") is an AI-powered IV
 
 #### Acceptance Criteria
 
-1. WHEN the Caller provides voice input, THE Intent_Router SHALL classify the intent using keyword and pattern matching within 200 milliseconds without using an LLM call
+1. WHEN the Caller provides voice input, THE Intent_Router SHALL classify the intent using a 3-stage cascade: Stage 1 keyword scan (5ms, no LLM, short utterances only), Stage 2 Nova Lite Master Extraction (~150ms, fired in parallel with Stage 1 via Promise.race()), Stage 3 Nova Pro safety check (only when `is_emergency=true` and `confidence < CONFIDENCE_THRESHOLD`). Total latency: 5ms on keyword hit, ~150ms otherwise.
 2. WHEN the Intent_Router detects emergency keywords in Hindi, English, or Hinglish (e.g., "heart attack", "saans nahi aa rahi", "saanp ne kaata", "seene mein dard"), THE Intent_Router SHALL route the call to the Emergency_KB
 3. WHEN the Caller presses DTMF key 9, THE Intent_Router SHALL immediately route the call to the Emergency_KB regardless of other input
-4. WHEN the Speech_Engine detects panic or distress in the Caller's voice through Nova 2 Sonic emotion detection, THE Intent_Router SHALL escalate the call to the Emergency_KB
+4. WHEN the Speech_Engine detects panic or distress in the Caller's voice (production: Nova 2 Sonic emotion detection; prototype: severity keywords in transcribed text), THE Intent_Router SHALL escalate the call to the Emergency_KB
 5. WHEN no emergency indicators are detected, THE Intent_Router SHALL route the call to the General_Triage_KB for standard symptom assessment
 6. WHILE the General_Triage_KB is conducting a triage conversation, THE Intent_Router SHALL continuously monitor for danger signs and re-route to the Emergency_KB mid-call if danger signs appear (e.g., stroke symptoms appearing during a headache triage)
 7. WHEN the Caller speaks a single emergency activation word (Emergency SOS mode), THE Intent_Router SHALL immediately route to the Emergency_KB and begin the ABCDE assessment
+
+8. WHEN the Caller's utterance contains more than 4 words, THE Intent_Router SHALL skip keyword matching and route directly to Nova Lite Master Extraction to prevent false positive emergency triggers from negations ("seene mein dard nahi hai"), past-tense references ("kal dard tha"), or third-party descriptions ("mere bhai ko dard tha")
+
+9. WHEN the MasterExtractionResult contains `drugs_mentioned` with `query_type = "overdose"`, THE Intent_Router SHALL route to the Emergency_KB immediately, regardless of the `is_emergency` flag value.
+
+10. WHEN the MasterExtractionResult contains `drugs_mentioned` with `query_type = "safety"` or `"dosage"`, THE Intent_Router SHALL route to the Drug_KB, filtering by `patient_profile.category` and `pregnancy_flag`.
+
+11. WHEN the MasterExtractionResult `condition_id` is set, THE Call_Logger SHALL persist the `condition_id` value to DynamoDB for every call, enabling QuickSight analytics to show meaningful call distribution (e.g., "30% maternal_care, 10% chronic_disease, 5% cardiac") rather than undifferentiated "unknown" entries.
 
 ### Requirement 3: Provide Emergency Triage via Deterministic Protocols
 
@@ -181,7 +196,49 @@ VaidyaVaani (वैद्यवाणी - "Doctor's Voice") is an AI-powered IV
 
 #### Acceptance Criteria
 
-1. THE Speech_Engine SHALL support Tier 1 languages (Hindi and English) natively through Amazon Nova 2 Sonic with Indian-accented voices (Arjun and Kiara)
+1. THE Speech_Engine SHALL support Tier 1 languages (Hindi and English). Prototype — Amazon Polly Aditi (Hindi neural) via Twilio TwiML. Production — Amazon Nova 2 Sonic with Indian-accented voices (Arjun and Kiara) via Amazon Connect.
 2. WHERE a Caller selects a Tier 2 regional language (Tamil, Telugu, Bengali, Marathi, Gujarati, Kannada, Malayalam, Punjabi), THE IVR_System SHALL use Amazon Transcribe for speech-to-text and Amazon Polly for text-to-speech as a fallback path
 3. WHEN a Caller code-switches between Hindi and English (Hinglish), THE Speech_Engine SHALL process the mixed-language input and respond appropriately
-4. WHEN the IVR_System plays the welcome greeting, THE IVR_System SHALL offer language selection via DTMF keys (press 1 for Hindi, press 2 for English, additional keys for regional languages)
+4. WHEN the IVR_System plays the welcome greeting, THE IVR_System SHALL default to Hindi with a single English escape (press 2). No "press 1 for Hindi" — Hindi is the default, caller just speaks. Production Phase 2 adds STD-prefix-informed regional language selection.
+
+### Requirement 13: Display AI Disclaimer at Greeting and After Medical Advice
+
+**User Story:** As a Caller, I want to be clearly informed that I am speaking to an AI assistant and not a doctor, so that I understand the nature of the guidance I am receiving and seek professional medical help when needed.
+
+#### Acceptance Criteria
+
+1. WHEN a Caller connects to VaidyaVaani, THE IVR_System SHALL play the AI disclaimer AFTER the greeting, in the active language. For Hindi (default), the disclaimer plays immediately after the caller begins speaking. For English (press 2), it plays after language switch is confirmed.
+   - Hindi (default): "Main VaidyaVaani hoon, ek AI health assistant — doctor nahi. Apni takleef batayein."
+   - English (after pressing 2): "I am VaidyaVaani, an AI health assistant — not a doctor. Please describe your concern."
+   - Emergency path (voice triggers emergency detection): disclaimer is skipped entirely — life-saving instructions take priority (Requirement 13.4)
+
+2. WHEN THE Triage_Agent delivers any medical advice or triage recommendation, THE Triage_Agent SHALL append a short disclaimer at the end of every response
+   - Hindi (transliterated): "Yeh AI ki salah hai. Kisi bhi serious situation mein doctor se zaroor milein."
+   - English: "This is AI guidance. Please consult a doctor for any serious condition."
+
+3. THE disclaimer SHALL be brief (1-2 sentences maximum) and SHALL NOT be repeated mid-response or after every sentence to avoid disrupting the caller experience, especially for rural users calling in emergencies
+
+4. WHEN an emergency is detected and THE Emergency_Dispatch_Agent is activated, THE IVR_System SHALL skip the post-response disclaimer and prioritize delivering life-saving instructions without interruption
+
+5. THE disclaimer text SHALL be hardcoded in the IVR greeting flow and in the Triage_Agent system prompt as a Constitutional AI rule, ensuring it cannot be overridden by user input or prompt injection
+
+#### Implementation Notes
+- For Twilio + Polly (current prototype): Use transliterated Hindi (Roman script) for TTS compatibility
+- For Amazon Connect + Nova Sonic (production): Use proper Hindi Devanagari script for natural pronunciation
+- Disclaimer is part of Constitutional AI system prompt (see WHAT-WE-APPLY.md) — not generated by the LLM, hardcoded
+
+### Requirement 14: Provide Drug Safety Information via Structured Drug KB
+
+**User Story:** As a Caller asking about medication safety or dosage, I want accurate, structured drug information filtered for my specific situation (age, pregnancy status), so that I receive safe guidance without the risk of LLM hallucination on drug constraints.
+
+#### Acceptance Criteria
+
+1. WHEN the MasterExtractionResult contains `drugs_mentioned` with `query_type = "safety"` or `"dosage"`, THE Drug_KB SHALL retrieve the structured drug record from DynamoDB and return dosage or safety information filtered by `patient_profile.category` and `pregnancy_flag` within 10ms.
+
+2. WHEN `pregnancy_flag = "confirmed"` or `"possible"`, THE Drug_KB SHALL return only pregnancy-safe guidance and SHALL NOT return adult male dosage information.
+
+3. WHEN `drugs_mentioned[].query_type = "overdose"`, THE Intent_Router SHALL bypass the Drug_KB entirely and route directly to the Emergency_KB — overdose is always an emergency.
+
+4. THE Drug_KB SHALL source all drug data from India NLEM (National List of Essential Medicines) and SHALL NOT use LLM generation for drug constraint lookups — metadata filtering over structured DynamoDB records only.
+
+5. WHEN a drug query is resolved, THE Triage_Agent SHALL append the standard AI disclaimer and recommend consulting a pharmacist or doctor for any drug-related decision.
