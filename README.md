@@ -1,4 +1,4 @@
-# SavyaSachi - AI for Bharat 2026 Hackathon
+# SavyaSachi - AI for Bharat 2026 Hackathooon
 
 **Team Name:** SavyaSachi  
 **Project:** VaidyaVaani (वैद्यवाणी) - AI-Powered IVR Health Assistant
