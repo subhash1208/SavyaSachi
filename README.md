@@ -204,11 +204,11 @@ CALLER → Amazon Connect + Nova Sonic → Lambda Router (<200ms)
                        │                           │
                        ▼                           ▼
             ┌──────────────────────────────────────────────────────┐
-            │              ACTIONS (Parallel)                        │
-            │  • 108/102 dispatch    • SMS to family                │
-            │  • Hospital Dashboard  • ASHA worker alert            │
-            │  • 108 call bridge     • Follow-up scheduling         │
-            │  • ICD-10 logging      • Disease surveillance log     │
+            │              ACTIONS (Parallel)                      │
+            │  • 108/102 dispatch    • SMS to family               │
+            │  • Hospital Dashboard  • ASHA worker alert           │
+            │  • 108 call bridge     • Follow-up scheduling        │
+            │  • ICD-10 logging      • Disease surveillance log    │
             └──────────────────────────────────────────────────────┘
 ```
 
