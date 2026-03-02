@@ -2,7 +2,7 @@
 
 ## Overview
 
-VaidyaVaani is an AI-powered IVR health assistant built entirely on AWS services. The system receives phone calls via Amazon Connect, processes speech using Amazon Nova 2 Sonic (speech-to-speech with Indian-accented voices), classifies intent via a Lambda-based keyword router, and routes to one of two knowledge bases: a deterministic Emergency Protocol KB (~15 hand-crafted ABCDE scripts) or an intelligent General Triage KB (RAG over ICMR/WHO protocols via Amazon Bedrock with Claude 3.5 Sonnet). Post-triage, AWS Step Functions orchestrates parallel agentic actions including 108/102 ambulance dispatch, SMS notifications, ASHA worker alerts, facility referral, and disease surveillance logging. All data is stored in DynamoDB with ICD-10 coding and FHIR JSON format for ABDM interoperability.
+VaidyaVaani is an AI-powered IVR health assistant built entirely on AWS services. The prototype receives phone calls via Twilio (number: +1 507 776 8060), processes speech using Amazon Polly Aditi voice (Hindi neural TTS), classifies intent via a 3-stage Lambda cascade (keyword scan → Nova Lite Master Extraction → Nova Pro safety check), and routes to one of three knowledge bases: a deterministic Emergency Protocol KB (~15 ABCDE scripts in DynamoDB), a structured Drug KB (DynamoDB, NLEM medicines), or an intelligent General Triage KB (RAG over ICMR/WHO protocols via Bedrock). The production architecture uses Amazon Connect + Nova 2 Sonic — blocked on AISPL during hackathon (see BLOCKERS-AND-DECISIONS.md).
 
 The design prioritizes:
 - **Zero hallucination** for emergencies (deterministic scripts read verbatim)
@@ -24,15 +24,15 @@ graph LR
     end
 
     subgraph IVR["IVR Layer"]
-        AC[Amazon Connect<br/>Toll-Free Number]
-        NS[Nova 2 Sonic<br/>Arjun/Kiara Voices]
+        AC[Twilio IVR<br/>+1 507 776 8060<br/>Prototype]
+        NS[Amazon Polly Aditi<br/>Hindi Neural TTS<br/>Prototype]
     end
 
     subgraph Intelligence["Intelligence Layer"]
         IR[Lambda Intent Router<br/><200ms]
         EKB[Emergency KB<br/>15 ABCDE Scripts<br/><1s Response]
         GKB[General Triage KB<br/>50-200+ Docs<br/>1-3s Response]
-        BR[Amazon Bedrock<br/>Claude 3.5 Sonnet]
+        BR[Amazon Bedrock<br/>Nova Pro — Triage<br/>Nova Lite — Extraction]
     end
 
     subgraph Actions["Action Layer"]
@@ -75,21 +75,86 @@ graph LR
 
 ### Intent Classification & Routing Flow
 
+The routing pipeline uses a **3-stage cascade** to balance speed and accuracy:
+
+- **Stage 1 — Keyword Scan (5ms):** Pure Lambda keyword matching. Catches ~80% of emergencies instantly. No LLM call.
+- **Stage 2 — Nova Lite Master Extraction (150ms):** If no keyword match, a single Nova Lite call extracts a structured JSON tag set that routes both emergency and general triage paths simultaneously.
+- **Stage 3 — Nova Pro General Triage (2-3s):** Only for non-emergency, ambiguous, or low-confidence cases.
+
 ```mermaid
 graph TD
     INPUT[Caller Voice Input] --> DTMF{DTMF Key 9?}
     DTMF -->|Yes| EMERGENCY[Emergency KB]
-    DTMF -->|No| SOS{SOS Word?}
-    SOS -->|Yes| EMERGENCY
-    SOS -->|No| KW{Emergency Keywords?<br/>Hindi/English/Hinglish}
-    KW -->|Match| EMERGENCY
-    KW -->|No Match| EMO{Emotion Detection?<br/>Panic/Distress}
-    EMO -->|Detected| EMERGENCY
-    EMO -->|Normal| TRIAGE[General Triage KB]
+    DTMF -->|No| KW{Stage 1: Keyword Scan<br/>5ms, Lambda only}
+    KW -->|Match + High Confidence| EMERGENCY
+    KW -->|No Match| NL[Stage 2: Nova Lite<br/>Master Extraction<br/>~150ms]
+    NL --> JSON{Parse Extraction JSON<br/>is_emergency + confidence}
+    JSON -->|is_emergency=true<br/>confidence >= 0.7| EMERGENCY
+    JSON -->|is_emergency=true<br/>confidence < 0.7| SAFETY[Nova Pro Safety Check<br/>~2s]
+    SAFETY --> EMERGENCY
+    JSON -->|is_emergency=false| TRIAGE[General Triage KB<br/>with Metadata Filter]
+    EMERGENCY --> DDB_FETCH[DynamoDB Script Fetch<br/>by condition_id + patient_category<br/>5ms]
+    DDB_FETCH --> SCRIPT[Read Deterministic Script<br/>Verbatim — Zero LLM]
     TRIAGE -->|Continuous Monitoring| DS{Danger Signs<br/>Mid-Call?}
     DS -->|Yes| EMERGENCY
-    DS -->|No| CONTINUE[Continue Triage]
+    DS -->|No| CONTINUE[Continue Triage<br/>Nova Pro + KB]
 ```
+
+#### Master Extraction JSON (Nova Lite output)
+
+```json
+{
+  "is_emergency": true,
+  "condition_id": "cardiac|snakebite|child_fever|breathing_difficulty|general_fever|maternal_care|chronic_disease|drug_query|unknown",
+  "patient_profile": {
+    "category": "pediatric|adult|maternal|geriatric|unknown",
+    "exact_age_mentioned": "2 years | null",
+    "pregnancy_flag": "confirmed|possible|not_applicable|unknown"
+  },
+  "clinical_symptoms_english": ["chest pain", "left arm numbness"],
+  "drugs_mentioned": [
+    { "name": "paracetamol", "query_type": "safety|dosage|overdose|availability" }
+  ],
+  "severity_signal": "critical|urgent|mild",
+  "duration": "sudden onset | null",
+  "location_mentioned": "Khedi village | null",
+  "danger_signs_present": ["unconscious", "not_breathing"],
+  "confidence": 0.95
+}
+```
+
+**`condition_id` routing split:**
+- Emergency DynamoDB path: `cardiac`, `snakebite`, `child_fever`, `breathing_difficulty`
+- Bedrock KB path: `general_fever`, `maternal_care`, `chronic_disease`, `drug_query`, `unknown`
+- `drug_query` — caller has no symptom, only a drug question (e.g., "Is paracetamol safe in pregnancy?")
+- All non-emergency `condition_id` values feed QuickSight analytics — no more 95% "none" in the dashboard
+
+**`CONFIDENCE_THRESHOLD = 0.7`** — named constant used in all routing logic below. Below this value, Nova Pro safety check is triggered before DynamoDB fetch.
+
+**Routing logic from JSON:**
+- `is_emergency=true` + `confidence >= CONFIDENCE_THRESHOLD` → DynamoDB fetch by `condition_id` + `patient_profile.category`
+- `is_emergency=true` + `confidence < CONFIDENCE_THRESHOLD` → Nova Pro safety check before DynamoDB
+- `drugs_mentioned[].query_type = "overdose"` → Emergency path immediately, regardless of `is_emergency`
+- `drugs_mentioned[].query_type = "safety|dosage"` → Drug DB query filtered by `patient_profile.category` + `pregnancy_flag`
+- `is_emergency=false` → `clinical_symptoms_english` used as KB query, `patient_profile.category` used as metadata filter
+- `danger_signs_present` non-empty → mid-call escalation trigger regardless of `is_emergency` (Requirement 2.6)
+- `pregnancy_flag = "confirmed"|"possible"` → maternal protocols only, never adult male dosages
+
+#### Emergency Script DynamoDB Schema
+
+```
+Table: vaidyavaani-emergency-scripts
+Primary Key: condition_id (String)
+Sort Key:    patient_category (String)
+
+Examples:
+  cardiac    + adult     → { abcde_script, icd10: "I21.9", dispatch: "108", ... }
+  cardiac    + geriatric → { abcde_script (modified for elderly), ... }
+  snakebite  + adult     → { abcde_script, myth_busting, icd10: "T63.0", ... }
+  child_fever + pediatric → { abcde_script, ORS instructions, icd10: "A09", ... }
+```
+
+Scripts are read **verbatim** — zero LLM generation. CPR instructions for infants differ from adults. This schema enforces that separation.
 
 ### Emergency Dispatch 3-Layer Fallback
 
@@ -138,9 +203,9 @@ graph TD
 - `initiateOutboundCall(targetNumber: string, purpose: CallPurpose): CallSession` — For follow-ups
 - `handleMissedCall(callerNumber: string): void` — Triggers callback for zero-cost access
 
-### 2. Speech_Engine (Nova 2 Sonic)
+### 2. Speech_Engine (Prototype: Amazon Polly Aditi / Production: Nova 2 Sonic)
 
-**Responsibility:** Unified speech-to-speech processing with Indian-accented voices and emotion detection.
+**Responsibility:** Text-to-speech for IVR responses. Prototype uses Amazon Polly (Aditi — Hindi neural voice) via Twilio TwiML `<Say voice="Polly.Aditi">`. Production uses Nova 2 Sonic via Amazon Connect with Indian-accented voices and emotion detection.
 
 **Interfaces:**
 - `processVoiceInput(audioStream: AudioStream, language: Language): TranscribedText` — Converts speech to text
@@ -153,31 +218,89 @@ graph TD
 
 ### 3. Intent_Router (AWS Lambda)
 
-**Responsibility:** Classifies caller intent within 200ms using keyword/pattern matching (not LLM). Routes to Emergency_KB or General_Triage_KB.
+**Responsibility:** Classifies caller intent using a 3-stage cascade. Routes to Emergency_KB (DynamoDB scripts) or General_Triage_KB (RAG). Total latency: 5ms (keyword hit) or 150ms (Nova Lite extraction).
 
 **Interfaces:**
 - `classifyIntent(input: ClassificationInput): IntentResult` — Main classification function
-- `checkEmergencyKeywords(text: string, language: Language): boolean` — Keyword matching
+- `checkEmergencyKeywords(text: string, language: Language): KeywordMatch | null` — Stage 1 keyword scan
+- `extractMasterTags(text: string): MasterExtractionResult` — Stage 2 Nova Lite call
 - `checkDangerSigns(conversationContext: ConversationContext): boolean` — Mid-call monitoring
 
-**Emergency Keywords (sample):**
-| Hindi | English | Hinglish |
-|-------|---------|----------|
-| saans nahi aa rahi | can't breathe | breathing problem |
-| seene mein dard | chest pain | heart attack |
-| saanp ne kaata | snake bite | saanp bite |
-| khoon beh raha hai | heavy bleeding | bleeding |
-| behosh | unconscious | faint |
-| mirgi | seizure | fits |
-| jal gaya | burns | burn ho gaya |
+**Stage 1 — Emergency Keywords (5ms, no LLM):**
 
-### 4. Emergency_KB (Bedrock Knowledge Base)
+> ⚠️ **False Positive Guard:** Keyword scan is ONLY applied to short utterances (≤ 4 words) or single-phrase panic inputs (e.g., "Heart attack!", "Saanp kaata!"). Full sentences route directly to Stage 2 (Nova Lite) because Nova Lite understands negation ("nahi"), past tense ("tha"), and third-party references ("mere bhai ko"). Over-triaging a negation ("seene mein dard nahi hai") as an emergency damages caller trust and wastes resources.
 
-**Responsibility:** Stores and retrieves ~15 deterministic emergency scripts. Zero AI generation — scripts are read verbatim.
+| Condition | Hindi | English | Hinglish |
+|---|---|---|---|
+| cardiac | seene mein dard, dil ka dora | chest pain, heart attack | heart attack ho raha |
+| snakebite | saanp ne kaata, naag ne kaata | snake bite | saanp bite |
+| child_fever | bachche ko tez bukhar, bachcha behosh | child fever, baby fits | bachche ko 102 |
+| breathing_difficulty | saans nahi aa rahi, dam ghut raha | can't breathe | breathing problem |
+
+**Stage 2 — Nova Lite Master Extraction (150ms) — runs in parallel with Stage 1:**
+
+> ⚡ **Promise.race() pattern:** Keyword scan AND Nova Lite call are fired simultaneously at utterance arrival. If keyword scan wins (emergency match), Nova Lite promise is abandoned. If keyword scan returns null, Nova Lite result is already ~145ms in progress. This squeezes maximum latency out of the pipeline.
+
+Single Nova Lite call returns `MasterExtractionResult` JSON. Nova Lite understands negation, past tense, and third-party references — safe for full sentences.
+
+**Nova Lite extraction prompt:**
+```
+Analyze this caller's medical utterance and return ONLY a JSON object.
+Utterance: "{caller_text}"
+
+{
+  "is_emergency": boolean,
+  "condition_id": "cardiac|snakebite|child_fever|breathing_difficulty|general_fever|maternal_care|chronic_disease|drug_query|unknown",
+  "patient_profile": {
+    "category": "pediatric|adult|maternal|geriatric|unknown",
+    "exact_age_mentioned": "string or null",
+    "pregnancy_flag": "confirmed|possible|not_applicable|unknown"
+  },
+  "clinical_symptoms_english": ["array", "of", "clinical", "terms"],
+  "drugs_mentioned": [
+    { "name": "drug name", "query_type": "safety|dosage|overdose|availability" }
+  ],
+  "severity_signal": "critical|urgent|mild",
+  "duration": "string or null",
+  "location_mentioned": "string or null",
+  "danger_signs_present": ["array or empty"],
+  "confidence": 0.0-1.0
+}
+
+Rules:
+- is_emergency=true ONLY for active, present-tense emergencies
+- If caller says "nahi" (no) or past tense, is_emergency=false
+- drugs_mentioned overdose → always set is_emergency=true
+- condition_id = "drug_query" when caller asks about a drug with no other symptoms
+- confidence < 0.7 if utterance is ambiguous
+```
+
+**Routing rules:**
+- `is_emergency=true` + `confidence >= CONFIDENCE_THRESHOLD (0.7)` → DynamoDB fetch
+- `is_emergency=true` + `confidence < CONFIDENCE_THRESHOLD (0.7)` → Nova Pro safety check
+- `drugs_mentioned[].query_type = "overdose"` → Emergency path immediately
+- `drugs_mentioned[].query_type = "safety|dosage"` → Drug DB query filtered by `patient_profile`
+- `is_emergency=false` → General Triage KB with metadata filter
+
+### 4. Emergency_KB (DynamoDB — Deterministic Scripts)
+
+**Responsibility:** Stores and retrieves deterministic emergency scripts. Zero AI generation — scripts are read verbatim. Retrieved by `condition_id` + `patient_category` composite key in ~5ms.
+
+**Hackathon scope (4 conditions):** cardiac, snakebite, child_fever, breathing_difficulty
+**Production scope (15 conditions):** all conditions listed below
 
 **Interfaces:**
-- `retrieveEmergencyScript(condition: EmergencyCondition): EmergencyScript` — Retrieves matching script
-- `getABCDEAssessment(condition: EmergencyCondition): ABCDEScript` — Returns ABCDE assessment questions
+- `retrieveEmergencyScript(conditionId: string, patientCategory: string): EmergencyScript` — DynamoDB GetItem by composite key
+- `getABCDEAssessment(conditionId: string, patientCategory: string): ABCDEScript` — Returns ABCDE assessment questions
+
+**Why DynamoDB over Bedrock KB for emergencies:**
+- DynamoDB GetItem = 5ms. Bedrock KB retrieval = 200-500ms.
+- Scripts are deterministic — no retrieval ambiguity, no hallucination risk
+- `patient_category` sort key enforces clinical separation (infant CPR ≠ adult CPR)
+- Scripts stored as structured JSON with ABCDE steps, bilingual instructions, myth-busting
+- Emergency logic must be auditable, versioned, and never influenced by semantic similarity
+
+> **Core principle from teammate's ingestion architecture:** "Emergency logic must be deterministic. Use the LLM only to extract symptoms from speech and map to structured schema — not to decide red flags."
 
 **Emergency Conditions (15):**
 
@@ -199,27 +322,114 @@ graph TD
 | 14 | Infant Not Breathing | P28.4 | 108 |
 | 15 | Heatstroke | T67.0 | 108 |
 
-### 5. General_Triage_KB (Bedrock Knowledge Base + OpenSearch Serverless)
+### 5. Drug_KB (DynamoDB — Structured Drug Database)
 
-**Responsibility:** RAG-based retrieval over 50-200+ medical protocol documents for non-emergency triage.
+**Responsibility:** Stores and retrieves structured drug information for NLEM medicines. Queried when `drugs_mentioned` is non-empty in the MasterExtractionResult. Zero LLM for drug constraint lookups — metadata filtering is safer and faster than embedding similarity for medical constraints.
 
 **Interfaces:**
-- `queryTriage(symptoms: string, context: ConversationContext): TriageResponse` — RAG query
+- `queryDrug(drugName: string, queryType: string, patientProfile: PatientProfile): DrugInfo` — DynamoDB GetItem by drug_name + query_type
+- `checkOverdose(drugName: string): boolean` — Returns true if query_type is "overdose" → triggers emergency path
+
+**Routing:**
+- `overdose` → Emergency path immediately (before any other routing)
+- `safety | dosage` → Drug DB query filtered by `patient_profile.category` and `pregnancy_flag`
+- `availability` → NLEM lookup
+
+### 6. General_Triage_KB (Bedrock Knowledge Base + OpenSearch Serverless)
+
+**Responsibility:** RAG-based retrieval over 50-200+ medical protocol documents for non-emergency triage. Uses `patient_category` metadata filter from Master Extraction to prevent cross-category hallucinations (e.g., adult dosages never retrieved for pediatric queries).
+
+**Interfaces:**
+- `queryTriage(clinicalSymptoms: string[], patientCategory: string, context: ConversationContext): TriageResponse` — RAG query with metadata filter
 - `generateFollowUpQuestion(context: ConversationContext): string` — Next assessment question
 - `classifySeverity(triageResult: TriageResult): SeverityLevel` — Green/Yellow/Red classification
 
-**Data Sources:**
-- ICMR STWs (10-50 PDFs for hackathon, 157 for production)
+**Metadata filter applied on every query:**
+```javascript
+// patient_category from patient_profile.category
+filter: { equals: { key: "patient_category", value: patientProfile.category } }
+
+// Additional pregnancy filter when flag is confirmed or possible
+// Ensures maternal protocols only, never adult male dosages
+if (patientProfile.pregnancy_flag === "confirmed" || patientProfile.pregnancy_flag === "possible") {
+  filter = { equals: { key: "patient_category", value: "maternal" } }
+}
+```
+
+**Query input:** `clinical_symptoms_english` array from Master Extraction (e.g., `["abdominal pain", "nausea", "vomiting"]`) — not the raw Hindi utterance. This is the query expansion step from WHAT-WE-APPLY.md.
+
+**TTFT (Time-To-First-Token) — Perceived Latency Reduction:**
+
+General triage takes ~2.5s. 2.5s of silence on a phone call feels like a dropped call. Two strategies:
+
+- **Hackathon (simple):** Filler response pattern — immediately play "Ji, main samajh rahi hoon, ek second..." while Nova Pro generates. Masks ~1.5s of latency with no architecture change.
+- **Production:** Twilio Media Streams + WebSocket streaming — Nova Pro streams first token (~400ms) directly to audio pipeline. Caller hears response start almost immediately while rest generates in background.
+
+**Data Sources — Tiered Ingestion Architecture:**
+
+Not all 13 medical sources are equal. Dumping everything into a single vector DB weakens clinical reliability. Sources are split across 5 layers based on their role:
+
+| Layer | Sources | Storage | Why |
+|-------|---------|---------|-----|
+| Layer 1 — Emergency Protocols | WHO ABCDE, NAPSE 2024, NHM NAS 108/102, IMCI red flags, IMAI red flags | DynamoDB deterministic scripts | Must be auditable, versioned, zero hallucination |
+| Layer 2 — Clinical Workflows | ICMR STWs (157), WHO IMAI narrative, WHO IMCI narrative, RMNCH+A, WHO Snakebite Guidelines | Structured JSON + Bedrock KB (narrative only) | Algorithms → JSON trees; narrative → vector embeddings |
+| Layer 3 — Drug Knowledge | WHO Essential Medicines, India NLEM | DynamoDB structured drug table | Metadata filtering > embedding similarity for drug constraints |
+| Layer 4 — Coding & Interoperability | ABDM ICD-10, LOINC, IPHS facility standards | DynamoDB lookup tables | Codes must never be LLM-generated; deterministic mapping only |
+| Layer 5 — Embedding KB (RAG) | Narrative portions of ICMR workflows, WHO education sections, maternal health advice, symptom-disease datasets | Bedrock KB (OpenSearch Serverless) | Explanatory content only — not life-critical decision nodes |
+
+**Layer 3 — Drug DB DynamoDB Schema:**
+```
+Table: vaidyavaani-drug-db
+Primary Key: drug_name (String, normalized lowercase)
+Sort Key:    query_type (String: "safety" | "dosage" | "overdose" | "availability")
+
+Example item:
+{
+  "drug_name": "paracetamol",
+  "query_type": "dosage",
+  "dose_child": "10-15 mg/kg every 4-6 hours",
+  "dose_adult": "500-1000 mg every 4-6 hours",
+  "max_daily_adult": "4000 mg",
+  "max_daily_child": "60 mg/kg",
+  "contraindications": ["hepatic impairment", "G6PD deficiency"],
+  "pregnancy_category": "B — generally safe",
+  "renal_adjustment": "reduce dose in severe CKD",
+  "source": "India NLEM 2022"
+}
+```
+
+**Routing from `drugs_mentioned` in MasterExtractionResult:**
+- `query_type = "overdose"` → Emergency path immediately (regardless of `is_emergency` flag)
+- `query_type = "safety" | "dosage"` → Drug DB DynamoDB query filtered by `patient_profile.category` and `pregnancy_flag`
+- `query_type = "availability"` → NLEM lookup
+
+**Layer 5 — Bedrock KB Metadata Tags (required on every document at upload):**
+```json
+{
+  "patient_category": "pediatric | adult | maternal | general",
+  "condition_type": "emergency | chronic | general",
+  "source": "WHO_IMCI | ICMR_STW | WHO_IMAI | RMNCH_A",
+  "severity": "critical | moderate | mild",
+  "age_group": "0-5 | 6-12 | 13-18 | adult | geriatric",
+  "pregnancy_flag": "applicable | not_applicable"
+}
+```
+
+**Hackathon scope (Layer 5 documents):**
+- ICMR STWs (10-50 PDFs, narrative sections only)
 - WHO IMAI chunks (5-10 Markdown files)
 - WHO IMCI chunks (3-5 Markdown files)
-- WHO Snakebite + India NAPSE 2024 (2-3 Markdown files)
-- IPHS facility capabilities (4 Markdown files)
-- NLEM medicines list (1 CSV)
-- Symptom-disease mapping (1-3 CSVs)
+- WHO Snakebite + India NAPSE 2024 narrative (2-3 Markdown files)
+- Maternal health advice (RMNCH+A narrative sections)
 
-### 6. Triage_Agent (Amazon Bedrock — Claude 3.5 Sonnet)
+**LLM role in this architecture:**
+- Maps caller speech → structured symptoms → protocol match
+- Explains logic in natural language
+- Does NOT decide emergency thresholds, ambulance triggers, or drug contraindications — those are deterministic
 
-**Responsibility:** AI reasoning engine for symptom assessment, severity classification, and treatment recommendations.
+### 7. Triage_Agent (Amazon Bedrock — Nova Pro 1.0)
+
+**Responsibility:** AI reasoning engine for symptom assessment, severity classification, and treatment recommendations. Prototype uses Nova Pro (`us.amazon.nova-pro-v1:0`). Production uses Claude Sonnet 4.6 (blocked on AISPL — see BLOCKERS-AND-DECISIONS.md).
 
 **Interfaces:**
 - `assessSymptoms(input: SymptomInput, kbResults: KBResults): TriageAssessment` — Main assessment
@@ -227,7 +437,7 @@ graph TD
 - `tagICD10(assessment: TriageAssessment): ICD10Code` — Diagnosis coding
 - `determineFacilityLevel(severity: SeverityLevel): FacilityLevel` — PHC/CHC/District Hospital
 
-### 7. Emergency_Dispatch_Agent (AWS Lambda + Step Functions)
+### 8. Emergency_Dispatch_Agent (AWS Lambda + Step Functions)
 
 **Responsibility:** Executes 3-layer emergency dispatch fallback chain.
 
@@ -572,6 +782,77 @@ export function withErrorHandler<TEvent, TResult>(
 - Non-emergency paths return a generic error response
 
 ## Data Models
+
+### DrugInfo
+
+```typescript
+interface DrugInfo {
+  drug_name: string;                 // "paracetamol" (normalized lowercase)
+  query_type: "safety" | "dosage" | "overdose" | "availability";
+  dose_child?: string;               // "10-15 mg/kg every 4-6 hours"
+  dose_adult?: string;               // "500-1000 mg every 4-6 hours"
+  max_daily_adult?: string;          // "4000 mg"
+  max_daily_child?: string;          // "60 mg/kg"
+  contraindications: string[];       // ["hepatic impairment", "G6PD deficiency"]
+  pregnancy_category: string;        // "B — generally safe"
+  renal_adjustment?: string;         // "reduce dose in severe CKD"
+  source: string;                    // "India NLEM 2022"
+}
+```
+
+**Routing from `drugs_mentioned` in MasterExtractionResult:**
+- `query_type = "overdose"` → Emergency path immediately (before any other routing)
+- `query_type = "safety" | "dosage"` → Drug DB DynamoDB query filtered by `patient_profile.category` and `pregnancy_flag`
+- `query_type = "availability"` → NLEM lookup
+
+### MasterExtractionResult
+
+```typescript
+// Named constant — used in all routing logic
+const CONFIDENCE_THRESHOLD = 0.7; // Below this → Nova Pro safety check before DynamoDB
+
+interface MasterExtractionResult {
+  is_emergency: boolean;
+  condition_id: "cardiac" | "snakebite" | "child_fever" | "breathing_difficulty"
+              | "general_fever" | "maternal_care" | "chronic_disease" | "drug_query" | "unknown";
+  patient_profile: {
+    category: "pediatric" | "adult" | "maternal" | "geriatric" | "unknown";
+    exact_age_mentioned: string | null;    // "2 years", "45 saal", null
+    pregnancy_flag: "confirmed" | "possible" | "not_applicable" | "unknown";
+  };
+  clinical_symptoms_english: string[];     // ["fever", "chest pain", "nausea"]
+  drugs_mentioned: {
+    name: string;                          // "paracetamol", "ORS"
+    query_type: "safety" | "dosage" | "overdose" | "availability";
+  }[];
+  severity_signal: "critical" | "urgent" | "mild";
+  duration: string | null;                 // "2 days", "since morning", null
+  location_mentioned: string | null;       // raw caller speech — "Khedi village", null
+                                           // NOTE: resolved coordinates live in LocationData, not here
+  danger_signs_present: string[];          // ["unconscious", "not_breathing"] or []
+  confidence: number;                      // 0.0 - 1.0
+}
+```
+
+**`condition_id` routing split:**
+- Emergency DynamoDB path: `cardiac`, `snakebite`, `child_fever`, `breathing_difficulty`
+- Bedrock KB / Drug DB path: `general_fever`, `maternal_care`, `chronic_disease`, `drug_query`, `unknown`
+- `drug_query` — caller has no symptom, only a drug question (e.g., "Is paracetamol safe in pregnancy?")
+
+**Routing rules from this result:**
+
+| Condition | Action |
+|---|---|
+| `is_emergency=true` + `confidence >= CONFIDENCE_THRESHOLD` | DynamoDB GetItem by `condition_id` + `patient_profile.category` |
+| `is_emergency=true` + `confidence < CONFIDENCE_THRESHOLD` | Nova Pro safety check before DynamoDB |
+| `drugs_mentioned[].query_type = "overdose"` | Emergency path immediately, regardless of `is_emergency` |
+| `drugs_mentioned[].query_type = "safety\|dosage"` | Drug DB query filtered by `patient_profile.category` + `pregnancy_flag` |
+| `drugs_mentioned[].query_type = "availability"` | NLEM lookup |
+| `condition_id = "drug_query"` + no `drugs_mentioned` overdose | Drug DB query only, skip symptom KB |
+| `is_emergency=false` | Bedrock KB query using `clinical_symptoms_english` + `patient_profile.category` metadata filter |
+| `danger_signs_present.length > 0` | Mid-call escalation trigger regardless of `is_emergency` |
+| `location_mentioned != null` | Parallel SNS SMS trigger with location while script is being read |
+| `pregnancy_flag = "confirmed"\|"possible"` | Maternal protocols only — never adult male dosages |
 
 ### CallRecord
 
@@ -944,7 +1225,7 @@ type FollowUpPurpose = "acute_check" | "chronic_monitoring" | "post_emergency";
 | Error | Handling | Fallback |
 |-------|----------|----------|
 | Speech_Engine failure | Fall back to DTMF-based menu navigation | Inform caller of fallback mode |
-| Nova 2 Sonic unavailable | Route to Transcribe + Polly fallback path | Degraded but functional |
+| Nova 2 Sonic unavailable (production) | Route to Transcribe + Polly fallback path | Degraded but functional |
 | Call drop during triage | Log partial triage, attempt callback if emergency detected | SMS with partial guidance |
 | DTMF detection failure | Retry voice input, offer to repeat | Default to Hindi voice path |
 
