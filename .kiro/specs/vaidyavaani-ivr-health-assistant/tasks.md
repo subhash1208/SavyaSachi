@@ -15,9 +15,9 @@ This plan implements VaidyaVaani as a serverless TypeScript application on AWS. 
     - _Requirements: All_
 
   - [ ] 1.2 Implement core TypeScript data models, enumerations, and service interfaces
-    - Create `src/models/types.ts` with all interfaces: `CallRecord`, `LocationData`, `EmergencyScript`, `TriageResult`, `ClassificationInput`, `IntentResult`, `EmergencyData`, `DispatchResult`, `ChronicCareEnrollment`, `FHIRCondition`, `STDCodeEntry`, `OutbreakAlert`
-    - Create `src/models/enums.ts` with all enumerations: `Language`, `Voice`, `EmergencyCondition`, `ChronicCondition`, `FacilityLevel`, `ActionType`, `CallPurpose`, `FollowUpPurpose`
-    - Create service interface files in `src/interfaces/`: `IIntentRouter.ts`, `IEmergencyKB.ts`, `IGeneralTriageKB.ts`, `ITriageAgent.ts`, `IEmergencyDispatch.ts`, `ILocationDetector.ts`, `ICallLogger.ts`, `IActionOrchestrator.ts`, `ISmsService.ts`, `IReferralAgent.ts`, `IFollowUpScheduler.ts`, `IASHAWorkerAgent.ts`, `IDiseaseSurveillance.ts`, `IChronicCareAgent.ts`, `IMultimodalVision.ts`, `IHospitalDashboard.ts`
+    - Create `src/models/types.ts` with all interfaces: `CallRecord`, `LocationData`, `EmergencyScript`, `TriageResult`, `ClassificationInput`, `IntentResult`, `EmergencyData`, `DispatchResult`, `ChronicCareEnrollment`, `FHIRCondition`, `STDCodeEntry`, `OutbreakAlert`, `MasterExtractionResult`, `DrugInfo`, `PatientProfile`
+    - Create `src/models/enums.ts` with all enumerations: `Language`, `Voice`, `EmergencyCondition`, `ChronicCondition`, `FacilityLevel`, `ActionType`, `CallPurpose`, `FollowUpPurpose`, `DrugQueryType`
+    - Create service interface files in `src/interfaces/`: `IIntentRouter.ts`, `IEmergencyKB.ts`, `IGeneralTriageKB.ts`, `ITriageAgent.ts`, `IEmergencyDispatch.ts`, `ILocationDetector.ts`, `ICallLogger.ts`, `IActionOrchestrator.ts`, `ISmsService.ts`, `IReferralAgent.ts`, `IFollowUpScheduler.ts`, `IASHAWorkerAgent.ts`, `IDiseaseSurveillance.ts`, `IChronicCareAgent.ts`, `IMultimodalVision.ts`, `IHospitalDashboard.ts`, `IDrugKB.ts`
     - Create `src/interfaces/index.ts` barrel file exporting all interfaces
     - Create `src/middleware/errorHandler.ts` with shared `withErrorHandler` wrapper for consistent error responses and emergency fallback
     - _Requirements: All_
@@ -74,26 +74,35 @@ This plan implements VaidyaVaani as a serverless TypeScript application on AWS. 
     - Verify ABCDE order in each script
     - _Requirements: 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 4. Checkpoint - Core routing and emergency scripts
+- [ ] 4. Implement Drug Knowledge Base (DynamoDB structured drug table)
+  - [ ] 4.1 Create Drug KB data and retrieval service
+    - Create `src/services/drugKB.ts` with `queryDrug()` and `checkOverdose()`
+    - Create `src/data/drugDatabase.ts` with NLEM drug entries as structured JSON (hackathon scope: paracetamol, ORS, metformin, amlodipine, cotrimoxazole, amoxicillin, antivenom)
+    - Each entry includes: dose_child, dose_adult, max_daily, contraindications, pregnancy_category, renal_adjustment, source
+    - `checkOverdose()` returns true for any drug with query_type "overdose" → triggers emergency path immediately
+    - Drug queries filtered by `patient_profile.category` and `pregnancy_flag` from MasterExtractionResult
+    - _Requirements: 4.3 (drug safety), 3.1 (overdose = emergency)_
+
+- [ ] 5. Checkpoint - Core routing, emergency scripts, and drug KB
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. Implement Location Detection Service
-  - [ ] 5.1 Implement 3-tier Location Detector
+- [ ] 6. Implement Location Detection Service
+  - [ ] 6.1 Implement 3-tier Location Detector
     - Create `src/services/locationDetector.ts` with `extractSTDCode()`, `parseVoiceLocation()`, `sendGPSLink()`, `receiveGPSCoordinates()`, `resolveLocation()`
     - Create `src/data/stdCodeDatabase.ts` with 600+ Indian STD code mappings (city, state, district)
     - Implement voice location parsing with regex patterns for village names, city names, landmarks, relative descriptions ("ke paas", "se 20 km")
     - Implement location resolution logic that combines all tiers into best available location
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6_
 
-  - [ ]* 5.2 Write property test for STD code mapping
+  - [ ]* 6.2 Write property test for STD code mapping
     - **Property 8: STD code mapping correctness**
     - **Validates: Requirements 6.1**
 
-  - [ ]* 5.3 Write property test for voice location parsing
+  - [ ]* 6.3 Write property test for voice location parsing
     - **Property 9: Voice location parsing**
     - **Validates: Requirements 6.2**
 
-  - [ ]* 5.4 Write unit tests for Location Detector
+  - [ ]* 6.4 Write unit tests for Location Detector
     - Test known STD codes: 0755 → Bhopal, 011 → Delhi, 022 → Mumbai, 033 → Kolkata
     - Test landmark descriptions: "railway station ke paas", "primary school ke saamne"
     - Test relative descriptions: "Bhopal se 20 kilometer"
@@ -127,7 +136,7 @@ This plan implements VaidyaVaani as a serverless TypeScript application on AWS. 
   - [ ] 8.1 Implement Triage Agent service
     - Create `src/services/triageAgent.ts` with `assessSymptoms()`, `generateTreatmentAdvice()`, `tagICD10()`, `determineFacilityLevel()`
     - Implement severity-to-facility mapping: critical → district_hospital/dispatch, urgent → CHC/district_hospital, non-urgent → home/PHC
-    - Implement Bedrock API integration for Claude 3.5 Sonnet with guardrails configuration
+    - Implement Bedrock API integration for Nova Pro (`us.amazon.nova-pro-v1:0`) with guardrails configuration
     - Implement input sanitization in `src/utils/inputSanitizer.ts` to prevent prompt injection
     - _Requirements: 4.3, 4.4, 9.2, 9.3_
 
@@ -229,7 +238,7 @@ This plan implements VaidyaVaani as a serverless TypeScript application on AWS. 
 - [ ] 15. Wire components together and implement Lambda handlers
   - [ ] 15.1 Implement main IVR call handler Lambda
     - Create `src/handlers/callHandler.ts` as the main entry point for Amazon Connect contact flows
-    - Wire: call reception → language selection → intent routing → triage → actions → logging
+    - Wire: call reception → language selection → intent routing → master extraction → emergency/drug KB/general triage → actions → logging
     - Implement missed call callback handler
     - Implement DTMF handling and voice/DTMF fallback logic
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6_
@@ -247,7 +256,9 @@ This plan implements VaidyaVaani as a serverless TypeScript application on AWS. 
 
   - [ ]* 15.4 Write integration tests for end-to-end call flow
     - Test emergency call: dial → DTMF 9 → emergency script → dispatch → SMS → logging
-    - Test non-emergency call: dial → voice input → triage → SMS → follow-up → logging
+    - Test non-emergency call: dial → voice input → master extraction → triage → SMS → follow-up → logging
+    - Test drug overdose path: voice input → master extraction → overdose detected → emergency path immediately
+    - Test drug safety query: voice input → master extraction → drug DB query filtered by patient_profile → response
     - Test mid-call escalation: general triage → danger signs → emergency re-route
     - Test dispatch fallback chain: Layer 1 timeout → Layer 2 → Layer 3
     - _Requirements: All_
