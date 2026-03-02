@@ -155,6 +155,14 @@ export class IntentRouterService implements IIntentRouter {
       return { intent: 'emergency', confidence: 1.0, triggerType: 'keyword', matchedKeywords: ['overdose'] };
     }
 
+    // Drug safety/dosage query → Drug KB (Req 2.10)
+    const hasDrugQuery = extraction.drugs_mentioned.some(
+      d => d.query_type === 'safety' || d.query_type === 'dosage' || d.query_type === 'availability'
+    );
+    if (hasDrugQuery && !extraction.is_emergency) {
+      return { intent: 'drug', confidence: extraction.confidence, triggerType: 'default' };
+    }
+
     if (extraction.is_emergency) {
       if (extraction.confidence >= CONFIDENCE_THRESHOLD) {
         return { intent: 'emergency', confidence: extraction.confidence, triggerType: 'default' };

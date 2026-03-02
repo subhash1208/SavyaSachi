@@ -26,6 +26,7 @@ export interface MasterExtractionResult {
   location_mentioned: string | null;
   danger_signs_present: string[];
   confidence: number;
+  language_register: "pure_hindi" | "hinglish" | "english";
 }
 
 // ─── Conversation State (DynamoDB, keyed by callSid) ────────────────────────
@@ -43,6 +44,7 @@ export interface ConversationState {
   dangerSignsDetected: string[];
   locationCollected: boolean;
   callStartTime: string;
+  clinicalSummary: string;            // rolling English summary from Nova Pro — replaced after each turn, passed as context to next turn
 }
 
 // ─── Location ────────────────────────────────────────────────────────────────
@@ -73,7 +75,7 @@ export interface LocationData {
     timestamp: string;
   };
   primaryLocation: string;
-  accuracyLevel: "gps" | "village" | "landmark" | "district" | "unknown";
+  accuracyLevel: "gps" | "village" | "landmark" | "city" | "district" | "unknown";
 }
 
 export type Tier1Location = NonNullable<LocationData["tier1Voice"]>;
@@ -98,8 +100,8 @@ export interface BilingualInstruction {
 export interface ABCDEStep {
   questionHindi: string;
   questionEnglish: string;
-  yesAction: string;
-  noAction: string;
+  yesAction: BilingualInstruction;
+  noAction: BilingualInstruction;
   escalationTrigger?: boolean;
 }
 
@@ -193,6 +195,9 @@ export interface SymptomInput {
   conditionId: string;
   duration: string | null;
   dangerSignsPresent: string[];
+  language: Language;                // "hindi" | "english" — from ConversationState
+  rawUtterance: string;              // original caller speech — fallback for register detection
+  language_register?: "pure_hindi" | "hinglish" | "english"; // from Nova Lite extraction; overrides detectRegister()
 }
 
 export interface KBResults {
@@ -227,7 +232,7 @@ export interface ClassificationInput {
 }
 
 export interface IntentResult {
-  intent: "emergency" | "general_triage";
+  intent: "emergency" | "general_triage" | "drug";
   confidence: number;
   triggerType: "keyword" | "dtmf" | "emotion" | "sos" | "danger_sign" | "default";
   matchedKeywords?: string[];

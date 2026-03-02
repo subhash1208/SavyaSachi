@@ -121,7 +121,7 @@ VaidyaVaani (वैद्यवाणी - "Doctor's Voice") is an AI-powered IV
 
 #### Acceptance Criteria
 
-1. WHEN a call begins, THE Location_Detector SHALL automatically extract the phone number's STD code prefix to determine the district or city as Tier 2 baseline location data
+1. WHEN a call begins, THE Location_Detector SHALL automatically extract the phone number prefix to determine the district/city or telecom circle/state as Tier 2 baseline location data — for landlines, extract the STD code (2–5 digits with leading 0) and look up city/district/state; for mobile numbers (starting with 6–9), extract the first 4 digits and look up the TRAI telecom circle and state. Both lookups use DynamoDB (`vaidyavaani-std-codes` and `vaidyavaani-mobile-circles` tables). This is automatic, requires zero user input, and succeeds for 100% of calls.
 2. WHEN an emergency is detected or location is needed, THE Location_Detector SHALL ask the Caller for their location via voice input as the Tier 1 primary method ("Aap kahan hain? Gaon ka naam ya koi landmark bataiye") and resolve the response to village or landmark level within 15 seconds
 3. IF the Caller cannot provide a voice location (unconscious, unable to speak), THEN THE Location_Detector SHALL use the Tier 2 phone prefix data as the fallback location
 4. WHERE the Caller is using a smartphone, THE Location_Detector SHALL send an SMS with a GPS link to capture precise coordinates as a Tier 3 enhancement

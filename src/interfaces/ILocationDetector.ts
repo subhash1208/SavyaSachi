@@ -1,9 +1,9 @@
-import { Tier1Location, Tier2Location, Tier3Location, ResolvedLocation } from '../models/types';
+import { Tier1Location, Tier2Location, ResolvedLocation } from '../models/types';
 
 export interface ILocationDetector {
-  extractSTDCode(phoneNumber: string): Tier2Location;
+  extractSTDCode(phoneNumber: string): Promise<Tier2Location | null>;
   parseVoiceLocation(transcribedText: string): Tier1Location | null;
-  sendGPSLink(phoneNumber: string, callId: string): Promise<void>;
-  receiveGPSCoordinates(callId: string, lat: number, lng: number): Tier3Location;
-  resolveLocation(callId: string): Promise<ResolvedLocation>;
+  sendGPSLink(phoneNumber: string, callId?: string): Promise<void>;
+  receiveGPSCoordinates(callId: string, lat: number, lng: number): Promise<{ latitude: number; longitude: number }>;
+  resolveLocation(tier2: Tier2Location, tier1?: Tier1Location): ResolvedLocation;
 }

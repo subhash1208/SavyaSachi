@@ -8,7 +8,7 @@ export type EmergencyCondition =
   | "cardiac" | "stroke" | "snakebite" | "severe_bleeding" | "choking"
   | "burns" | "poisoning" | "anaphylaxis" | "seizure" | "pregnancy_emergency"
   | "drowning" | "breathing_difficulty" | "unconsciousness"
-  | "infant_not_breathing" | "heatstroke";
+  | "infant_not_breathing" | "heatstroke" | "child_fever";
 
 export type ChronicCondition = "diabetes" | "hypertension" | "tb";
 

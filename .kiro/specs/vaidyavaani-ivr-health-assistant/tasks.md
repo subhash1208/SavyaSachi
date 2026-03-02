@@ -99,7 +99,11 @@ This plan implements VaidyaVaani as a serverless TypeScript application on AWS. 
 - [ ] 6. Implement Location Detection Service
   - [ ] 6.1 Implement 3-tier Location Detector
     - Create `src/services/locationDetector.ts` with `extractSTDCode()`, `parseVoiceLocation()`, `sendGPSLink()`, `receiveGPSCoordinates()`, `resolveLocation()`
-    - Create `src/data/stdCodeDatabase.ts` with 600+ Indian STD code mappings (city, state, district)
+    - Create `src/data/stdCodeDatabase.ts` with static fallback entries (used when DynamoDB unavailable)
+    - Tier 2 uses two DynamoDB tables: `vaidyavaani-std-codes` (landline STD codes, partition key: `stdCode`) and `vaidyavaani-mobile-circles` (mobile prefix4, partition key: `prefix4`)
+    - Landline lookup: try STD code lengths 5→4→3→2, first match wins
+    - Mobile lookup: take first 4 digits of 10-digit number, single GetItem on `vaidyavaani-mobile-circles`
+    - Seed scripts: `src/scripts/seedStdCodes.mjs` and `src/scripts/seedMobileCircles.mjs` (run once from CloudShell)
     - Implement voice location parsing with regex patterns for village names, city names, landmarks, relative descriptions ("ke paas", "se 20 km")
     - Implement location resolution logic that combines all tiers into best available location
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6_

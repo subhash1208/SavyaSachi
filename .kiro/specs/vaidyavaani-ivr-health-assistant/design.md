@@ -180,7 +180,7 @@ graph TD
 
 ```mermaid
 graph TD
-    CALL[Call Starts] --> T2[Tier 2: Auto-extract STD Code<br/>District/City level, 100% capture]
+    CALL[Call Starts] --> T2[Tier 2: Auto-extract from phone number<br/>Landline: STD code → city/district<br/>Mobile: prefix4 → telecom circle/state<br/>100% capture, zero user input]
     T2 --> NEED{Location Needed?}
     NEED -->|Emergency| T1[Tier 1: Voice Input<br/>"Aap kahan hain?"<br/>Village/Landmark, 85-90% capture]
     NEED -->|Non-Emergency| T1
@@ -534,7 +534,14 @@ Example item:
 - `receiveGPSCoordinates(callId: string, lat: number, lng: number): Tier3Location` — Receive GPS data
 - `resolveLocation(callId: string): ResolvedLocation` — Combine all tiers into best available location
 
-**STD Code Database:** 600+ Indian STD codes mapped to district/city/state.
+**Phone Lookup Databases (DynamoDB):**
+- `vaidyavaani-std-codes` — partition key: `stdCode` (String, 2–5 digits with leading 0). Maps landline STD codes to city/district/state. ~600 entries covering all state capitals, district HQs, and major towns.
+- `vaidyavaani-mobile-circles` — partition key: `prefix4` (String, always 4 digits, first 4 of a 10-digit mobile number). Maps mobile number series to telecom circle/state/operator. ~2,000+ entries covering all TRAI circles. Note: MNP (Mobile Number Portability) means operator may differ, but state/circle is still reliable for location.
+
+**Lookup logic:**
+- Landline (starts with `0`): try STD code lengths 5→4→3→2, first match wins
+- Mobile (starts with `6`–`9`): take first 4 digits, single `GetItem` on `vaidyavaani-mobile-circles`
+- Both return state + district/circle — sufficient for emergency dispatch routing
 
 ### 10. Action_Orchestrator (AWS Step Functions)
 
@@ -692,11 +699,11 @@ export interface IEmergencyDispatch {
 
 // src/interfaces/ILocationDetector.ts
 export interface ILocationDetector {
-  extractSTDCode(phoneNumber: string): Tier2Location;
-  parseVoiceLocation(transcribedText: string): Tier1Location;
-  sendGPSLink(phoneNumber: string, callId: string): Promise<void>;
-  receiveGPSCoordinates(callId: string, lat: number, lng: number): Tier3Location;
-  resolveLocation(callId: string): Promise<ResolvedLocation>;
+  extractSTDCode(phoneNumber: string): Tier2Location | null;       // landline: STD code lookup; mobile: prefix4 lookup
+  parseVoiceLocation(transcribedText: string): Tier1Location | null;
+  sendGPSLink(phoneNumber: string, callId?: string): Promise<void>;
+  receiveGPSCoordinates(callId: string, lat: number, lng: number): Promise<{ latitude: number; longitude: number }>;
+  resolveLocation(tier2: Tier2Location, tier1?: Tier1Location): ResolvedLocation;
 }
 
 // src/interfaces/ICallLogger.ts

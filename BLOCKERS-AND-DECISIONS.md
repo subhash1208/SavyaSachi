@@ -105,8 +105,23 @@ Stage 2: Nova Lite master extraction (150ms) → routes both paths
 
 ---
 
+## KNOWN LIMITATION #1 — Emotion Detection Not Available in Prototype
+**Date:** March 2, 2026
+**Status:** KNOWN LIMITATION — prototype workaround in place
 
-| Item | Owner | Status |
+### What Happened
+The design specifies emotion detection (panic/distress from voice tone) via Amazon Nova 2 Sonic + Amazon Connect. Both are blocked on AISPL. Twilio transcribes speech to plain text — no audio stream analysis, no tone detection.
+
+### Impact
+`emotionResult` field in `ClassificationInput` is never populated in the prototype. The emotion escalation branch in `classifyIntent()` never fires.
+
+### Prototype Workaround
+Nova Lite extracts `severity_signal: "critical|urgent|mild"` from the utterance text. If `severity_signal = "critical"` is returned, the call handler treats it as a high-urgency signal. This detects urgency in words, not panic in voice — a reasonable text-based approximation.
+
+### Production Fix
+Amazon Connect + Nova 2 Sonic handles emotion detection natively from the audio stream. No code change needed — just populate `emotionResult` from the Connect contact flow event.
+
+---
 |------|-------|--------|
 | Email Hack2Skill about AISPL | Subhash | ✅ Sent |
 | Exotel account setup | Subhash | ✅ Abandoned — switched to Twilio |
