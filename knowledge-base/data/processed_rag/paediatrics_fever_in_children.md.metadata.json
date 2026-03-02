@@ -1,6 +1,10 @@
 {
-  "source": "1725952338_paediatrics_fever_in_children.pdf",
-  "patient_category": "pediatric",
-  "condition_type": "general",
-  "severity": "moderate"
+  "metadataAttributes": {
+    "patient_category": "pediatric",
+    "condition_type": "general",
+    "source": "ICMR_STW",
+    "severity": "moderate",
+    "age_group": "0-5",
+    "pregnancy_flag": "not_applicable"
+  }
 }
