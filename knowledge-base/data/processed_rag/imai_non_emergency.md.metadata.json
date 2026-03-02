@@ -1,0 +1,6 @@
+{
+    "patient_category": "adult",
+    "condition_type": "general_triage",
+    "source": "WHO_IMAI",
+    "severity": "moderate"
+}
