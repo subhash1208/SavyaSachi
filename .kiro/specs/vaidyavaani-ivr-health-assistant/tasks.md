@@ -15,9 +15,9 @@ This plan implements VaidyaVaani as a serverless TypeScript application on AWS. 
     - _Requirements: All_
 
   - [ ] 1.2 Implement core TypeScript data models, enumerations, and service interfaces
-    - Create `src/models/types.ts` with all interfaces: `CallRecord`, `LocationData`, `EmergencyScript`, `TriageResult`, `ClassificationInput`, `IntentResult`, `EmergencyData`, `DispatchResult`, `ChronicCareEnrollment`, `FHIRCondition`, `STDCodeEntry`, `OutbreakAlert`, `MasterExtractionResult`, `DrugInfo`, `PatientProfile`
+    - Create `src/models/types.ts` with all interfaces: `CallRecord`, `LocationData`, `EmergencyScript`, `TriageResult`, `ClassificationInput`, `IntentResult`, `EmergencyData`, `DispatchResult`, `ChronicCareEnrollment`, `FHIRCondition`, `STDCodeEntry`, `OutbreakAlert`, `MasterExtractionResult`, `DrugInfo`, `PatientProfile`, `ConversationState`
     - Create `src/models/enums.ts` with all enumerations: `Language`, `Voice`, `EmergencyCondition`, `ChronicCondition`, `FacilityLevel`, `ActionType`, `CallPurpose`, `FollowUpPurpose`, `DrugQueryType`
-    - Create service interface files in `src/interfaces/`: `IIntentRouter.ts`, `IEmergencyKB.ts`, `IGeneralTriageKB.ts`, `ITriageAgent.ts`, `IEmergencyDispatch.ts`, `ILocationDetector.ts`, `ICallLogger.ts`, `IActionOrchestrator.ts`, `ISmsService.ts`, `IReferralAgent.ts`, `IFollowUpScheduler.ts`, `IASHAWorkerAgent.ts`, `IDiseaseSurveillance.ts`, `IChronicCareAgent.ts`, `IMultimodalVision.ts`, `IHospitalDashboard.ts`, `IDrugKB.ts`
+    - Create service interface files in `src/interfaces/`: `IIntentRouter.ts`, `IEmergencyKB.ts`, `IGeneralTriageKB.ts`, `ITriageAgent.ts`, `IEmergencyDispatch.ts`, `ILocationDetector.ts`, `ICallLogger.ts`, `IActionOrchestrator.ts`, `ISmsService.ts`, `IReferralAgent.ts`, `IFollowUpScheduler.ts`, `IASHAWorkerAgent.ts`, `IDiseaseSurveillance.ts`, `IChronicCareAgent.ts`, `IMultimodalVision.ts`, `IHospitalDashboard.ts`, `IDrugKB.ts`, `IConversationStateRepository.ts`
     - Create `src/interfaces/index.ts` barrel file exporting all interfaces
     - Create `src/middleware/errorHandler.ts` with shared `withErrorHandler` wrapper for consistent error responses and emergency fallback
     - _Requirements: All_
@@ -81,7 +81,17 @@ This plan implements VaidyaVaani as a serverless TypeScript application on AWS. 
     - Each entry includes: dose_child, dose_adult, max_daily, contraindications, pregnancy_category, renal_adjustment, source
     - `checkOverdose()` returns true for any drug with query_type "overdose" → triggers emergency path immediately
     - Drug queries filtered by `patient_profile.category` and `pregnancy_flag` from MasterExtractionResult
-    - _Requirements: 4.3 (drug safety), 3.1 (overdose = emergency)_
+    - _Requirements: 14.1, 14.2, 14.3, 14.4_
+
+  - [ ]* 4.2 Write property test for drug pregnancy filter
+    - **Property 19: Drug pregnancy filter correctness**
+    - For any drug query with `pregnancy_flag = "confirmed"` or `"possible"`, the response SHALL contain only pregnancy-safe guidance and SHALL NOT contain adult male dosage fields
+    - **Validates: Requirements 14.2**
+
+  - [ ]* 4.3 Write property test for drug not-found fallback
+    - **Property 20: Drug not-found safe fallback**
+    - For any drug name not present in the database, `queryDrug()` SHALL return a result with `not_found: true` and SHALL NOT throw an error or return null
+    - **Validates: Requirements 14.4**
 
 - [ ] 5. Checkpoint - Core routing, emergency scripts, and drug KB
   - Ensure all tests pass, ask the user if questions arise.
@@ -89,7 +99,11 @@ This plan implements VaidyaVaani as a serverless TypeScript application on AWS. 
 - [ ] 6. Implement Location Detection Service
   - [ ] 6.1 Implement 3-tier Location Detector
     - Create `src/services/locationDetector.ts` with `extractSTDCode()`, `parseVoiceLocation()`, `sendGPSLink()`, `receiveGPSCoordinates()`, `resolveLocation()`
-    - Create `src/data/stdCodeDatabase.ts` with 600+ Indian STD code mappings (city, state, district)
+    - Create `src/data/stdCodeDatabase.ts` with static fallback entries (used when DynamoDB unavailable)
+    - Tier 2 uses two DynamoDB tables: `vaidyavaani-std-codes` (landline STD codes, partition key: `stdCode`) and `vaidyavaani-mobile-circles` (mobile prefix4, partition key: `prefix4`)
+    - Landline lookup: try STD code lengths 5→4→3→2, first match wins
+    - Mobile lookup: take first 4 digits of 10-digit number, single GetItem on `vaidyavaani-mobile-circles`
+    - Seed scripts: `src/scripts/seedStdCodes.mjs` and `src/scripts/seedMobileCircles.mjs` (run once from CloudShell)
     - Implement voice location parsing with regex patterns for village names, city names, landmarks, relative descriptions ("ke paas", "se 20 km")
     - Implement location resolution logic that combines all tiers into best available location
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6_
@@ -109,152 +123,154 @@ This plan implements VaidyaVaani as a serverless TypeScript application on AWS. 
     - Test fallback from Tier 1 to Tier 2 when voice location unavailable
     - _Requirements: 6.1, 6.2, 6.3, 6.6_
 
-- [ ] 6. Implement FHIR Serialization and Call Logger
-  - [ ] 6.1 Implement FHIR JSON generator and Call Logger
+- [ ] 7. Implement FHIR Serialization and Call Logger
+  - [ ] 7.1 Implement FHIR JSON generator and Call Logger
     - Create `src/services/fhirGenerator.ts` with `generateFHIRRecord()` that converts triage results to FHIR Condition resources with ICD-10 coding
     - Create `src/services/callLogger.ts` with `logCall()`, `storeRecording()`, `redactPII()`, `generateFHIRRecord()`
     - Implement PII redaction for Indian phone numbers (+91-XXXXXXXXXX, 0XXX-XXXXXXX), email addresses, and Aadhaar-like patterns
     - Implement call record validation ensuring all required fields are present
-    - _Requirements: 8.1, 8.2, 8.3, 8.6, 4.5_
+    - _Requirements: 8.1, 8.2, 8.3, 8.7, 4.5_
 
-  - [ ]* 6.2 Write property test for FHIR JSON round-trip
+  - [ ]* 7.2 Write property test for FHIR JSON round-trip
     - **Property 5: FHIR JSON serialization round-trip**
-    - **Validates: Requirements 4.5, 8.6**
+    - **Validates: Requirements 4.5, 8.7**
 
-  - [ ]* 6.3 Write property test for PII redaction
+  - [ ]* 7.3 Write property test for PII redaction
     - **Property 13: PII redaction completeness**
     - **Validates: Requirements 8.3, 9.7**
 
-  - [ ]* 6.4 Write property test for call record completeness
+  - [ ]* 7.4 Write property test for call record completeness
     - **Property 12: Call record completeness**
     - **Validates: Requirements 8.1, 1.5**
 
-- [ ] 7. Checkpoint - Location, logging, and FHIR
+- [ ] 8. Checkpoint - Location, logging, and FHIR
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 8. Implement Triage Agent and Severity Classification
-  - [ ] 8.1 Implement Triage Agent service
+- [ ] 9. Implement Triage Agent and Severity Classification
+  - [ ] 9.1 Implement Triage Agent service
     - Create `src/services/triageAgent.ts` with `assessSymptoms()`, `generateTreatmentAdvice()`, `tagICD10()`, `determineFacilityLevel()`
     - Implement severity-to-facility mapping: critical → district_hospital/dispatch, urgent → CHC/district_hospital, non-urgent → home/PHC
     - Implement Bedrock API integration for Nova Pro (`us.amazon.nova-pro-v1:0`) with guardrails configuration
     - Implement input sanitization in `src/utils/inputSanitizer.ts` to prevent prompt injection
-    - _Requirements: 4.3, 4.4, 9.2, 9.3_
+    - _Requirements: 4.1, 4.3, 4.4, 9.2, 9.3_
 
-  - [ ]* 8.2 Write property test for severity-to-facility mapping
+  - [ ]* 9.2 Write property test for severity-to-facility mapping
     - **Property 4: Severity-to-facility mapping consistency**
     - **Validates: Requirements 4.4**
 
-  - [ ]* 8.3 Write property test for input sanitization
+  - [ ]* 9.3 Write property test for input sanitization
     - **Property 15: Input sanitization**
     - **Validates: Requirements 9.3**
 
-- [ ] 9. Implement Emergency Dispatch with 3-Layer Fallback
-  - [ ] 9.1 Implement Emergency Dispatch Agent
+- [ ] 10. Implement Emergency Dispatch with 3-Layer Fallback
+  - [ ] 10.1 Implement Emergency Dispatch Agent
     - Create `src/services/emergencyDispatch.ts` with `executeLayer1()`, `executeLayer2()`, `executeLayer3()`, `bridgeTo108()`
     - Implement hospital selection logic in `src/services/hospitalDashboard.ts` with `getHospitalsInRadius()` using Haversine distance calculation, `blastNotification()`, `acceptPatient()`
     - Implement dispatch message builder that includes ABCDE summary, ICD-10 code, and caller location
     - Implement Layer 1 → Layer 2 → Layer 3 escalation state machine
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6_
 
-  - [ ]* 9.2 Write property test for hospital selection within radius
+  - [ ]* 10.2 Write property test for hospital selection within radius
     - **Property 6: Hospital selection within radius**
     - **Validates: Requirements 5.1**
 
-  - [ ]* 9.3 Write property test for dispatch message completeness
+  - [ ]* 10.3 Write property test for dispatch message completeness
     - **Property 7: Dispatch message completeness**
     - **Validates: Requirements 5.6**
 
-  - [ ]* 9.4 Write unit tests for dispatch fallback chain
+  - [ ]* 10.4 Write unit tests for dispatch fallback chain
     - Test Layer 1 hospital acceptance flow
     - Test Layer 1 timeout → Layer 2 escalation
     - Test Layer 2 → Layer 3 escalation
     - Test dispatch message contains all required fields
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6_
 
-- [ ] 10. Checkpoint - Triage and dispatch
+- [ ] 11. Checkpoint - Triage and dispatch
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 11. Implement Post-Triage Agentic Actions
-  - [ ] 11.1 Implement Action Orchestrator and SMS service
+- [ ] 12. Implement Post-Triage Agentic Actions
+  - [ ] 12.1 Implement Action Orchestrator and SMS service
     - Create `src/services/actionOrchestrator.ts` with `orchestrateActions()` that triggers all post-triage actions in parallel
     - Create `src/services/smsService.ts` with SMS content generation including triage outcome, treatment instructions, and next steps
     - Create `src/services/referralAgent.ts` with `findNearestFacility()` and `getFacilityCapabilities()` using IPHS facility level data
     - _Requirements: 7.1, 7.4, 7.5, 7.6_
 
-  - [ ]* 11.2 Write property test for SMS content completeness
+  - [ ]* 12.2 Write property test for SMS content completeness
     - **Property 10: SMS content completeness**
     - **Validates: Requirements 7.1**
 
-  - [ ]* 11.3 Write property test for facility referral level matching
+  - [ ]* 12.3 Write property test for facility referral level matching
     - **Property 11: Facility referral level matching**
     - **Validates: Requirements 7.4**
 
-  - [ ] 11.4 Implement Follow-Up Scheduler
+  - [ ] 12.4 Implement Follow-Up Scheduler
     - Create `src/services/followUpScheduler.ts` with `scheduleFollowUp()`, `triggerFollowUp()`, `cancelFollowUp()`
     - Integrate with Amazon EventBridge for scheduling
     - Store schedules in DynamoDB
     - _Requirements: 7.2, 7.3_
 
-  - [ ] 11.5 Implement ASHA Worker Agent
+  - [ ] 12.5 Implement ASHA Worker Agent
     - Create `src/services/ashaWorkerAgent.ts` with `alertASHAWorker()`, `assignChronicCare()`, `sendMonitoringChecklist()`
     - Implement ASHA worker lookup by location (village/block)
     - _Requirements: 7.5, 11.1, 11.2_
 
-- [ ] 12. Implement Disease Surveillance
-  - [ ] 12.1 Implement Disease Surveillance Agent
+- [ ] 13. Implement Disease Surveillance
+  - [ ] 13.1 Implement Disease Surveillance Agent
     - Create `src/services/diseaseSurveillance.ts` with `aggregateByConditionAndLocation()`, `detectAnomaly()`, `alertDHO()`
     - Implement spike detection algorithm: flag when call count for a condition+location exceeds threshold within time window
     - Implement outbreak alert generation with geographic heatmap data
-    - _Requirements: 8.4, 8.5_
+    - _Requirements: 8.5, 8.6_
 
-  - [ ]* 12.2 Write property test for outbreak spike detection
+  - [ ]* 13.2 Write property test for outbreak spike detection
     - **Property 14: Outbreak spike detection**
-    - **Validates: Requirements 8.4**
+    - **Validates: Requirements 8.5**
 
-- [ ] 13. Implement Chronic Care and Multimodal Vision
-  - [ ] 13.1 Implement Chronic Care Agent
+- [ ] 14. Implement Chronic Care and Multimodal Vision
+  - [ ] 14.1 Implement Chronic Care Agent
     - Create `src/services/chronicCareAgent.ts` with enrollment logic that assigns ASHA workers
     - Implement condition-specific monitoring checklists (diabetes: blood sugar, hypertension: BP, TB: medication adherence)
     - Integrate with ASHA_Worker_Agent for checklist delivery
     - _Requirements: 11.1, 11.2, 11.3, 11.4_
 
-  - [ ]* 13.2 Write property test for chronic care ASHA assignment
+  - [ ]* 14.2 Write property test for chronic care ASHA assignment
     - **Property 16: Chronic care ASHA assignment**
     - **Validates: Requirements 11.1**
 
-  - [ ]* 13.3 Write property test for ASHA checklist condition matching
+  - [ ]* 14.3 Write property test for ASHA checklist condition matching
     - **Property 17: ASHA monitoring checklist condition matching**
     - **Validates: Requirements 11.2**
 
-  - [ ] 13.4 Implement Multimodal Vision Agent
+  - [ ] 14.4 Implement Multimodal Vision Agent
     - Create `src/services/multimodalVision.ts` with `analyzeImage()`, `identifySnakeSpecies()`, `assessWound()`
     - Integrate with Claude Vision via Bedrock API
     - Handle unclear/unprocessable photos gracefully
     - _Requirements: 10.1, 10.2, 10.3, 10.4_
 
-- [ ] 14. Checkpoint - All agents and services
+- [ ] 15. Checkpoint - All agents and services
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 15. Wire components together and implement Lambda handlers
-  - [ ] 15.1 Implement main IVR call handler Lambda
-    - Create `src/handlers/callHandler.ts` as the main entry point for Amazon Connect contact flows
-    - Wire: call reception → language selection → intent routing → master extraction → emergency/drug KB/general triage → actions → logging
+- [ ] 16. Wire components together and implement Lambda handlers
+  - [ ] 16.1 Implement main IVR call handler Lambda
+    - Create `src/handlers/callHandler.ts` as the main entry point for Twilio webhook via API Gateway (prototype) / Amazon Connect contact flows (production)
+    - Implement three Twilio webhook endpoints: `/incoming` (Turn 1 — greeting + first Gather), `/gather` (Turn N — process speech/DTMF, advance conversation), `/status` (call end — finalize record, trigger Step Functions)
+    - On every `/gather` invocation: load `ConversationState` from DynamoDB by `callSid`, process input, save updated state, return next TwiML
+    - Wire: call reception → language selection → intent routing → master extraction (cached in ConversationState after Turn 2) → emergency/drug KB/general triage → actions → logging
     - Implement missed call callback handler
     - Implement DTMF handling and voice/DTMF fallback logic
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6_
 
-  - [ ] 15.2 Implement Step Functions state machine definition
+  - [ ] 16.2 Implement Step Functions state machine definition
     - Create `src/stepfunctions/triageWorkflow.json` defining the parallel action orchestration
     - Wire: triage result → parallel branches (SMS, dispatch, ASHA alert, follow-up, referral, surveillance log)
     - Include error handling and retry logic for each branch
     - _Requirements: 7.6_
 
-  - [ ] 15.3 Implement Hospital Dashboard API handlers
+  - [ ] 16.3 Implement Hospital Dashboard API handlers
     - Create `src/handlers/hospitalDashboard.ts` with API Gateway handlers for hospital notification and acceptance
     - Wire: emergency dispatch → hospital notification → acceptance callback → caller notification
     - _Requirements: 5.1, 5.2_
 
-  - [ ]* 15.4 Write integration tests for end-to-end call flow
+  - [ ]* 16.4 Write integration tests for end-to-end call flow
     - Test emergency call: dial → DTMF 9 → emergency script → dispatch → SMS → logging
     - Test non-emergency call: dial → voice input → master extraction → triage → SMS → follow-up → logging
     - Test drug overdose path: voice input → master extraction → overdose detected → emergency path immediately
@@ -263,7 +279,7 @@ This plan implements VaidyaVaani as a serverless TypeScript application on AWS. 
     - Test dispatch fallback chain: Layer 1 timeout → Layer 2 → Layer 3
     - _Requirements: All_
 
-- [ ] 16. Final checkpoint - All tests pass
+- [ ] 17. Final checkpoint - All tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
