@@ -95,7 +95,12 @@ graph TD
     JSON -->|is_emergency=true<br/>confidence < 0.7| SAFETY[Stage 3: Nova Pro Safety Check<br/>~2s, low-confidence only]
     SAFETY --> EMERGENCY
     JSON -->|drugs_mentioned overdose| EMERGENCY
-    JSON -->|drugs_mentioned safety/dosage| DRUG[Drug KB<br/>DynamoDB filtered query]
+    JSON -->|drugs_mentioned safety/dosage| DUAL[Fire in Parallel<br/>Promise.all]
+    DUAL --> DRUG[Drug KB<br/>DynamoDB ~5ms]
+    DUAL --> KBCTX[General Triage KB<br/>counselling + danger signs chunks]
+    DRUG --> MERGE[Merge Results<br/>structured dose + narrative context]
+    KBCTX --> MERGE
+    MERGE --> NOVAPRO[Nova Pro<br/>generates rich response]
     JSON -->|is_emergency=false| TRIAGE[General Triage KB<br/>with Metadata Filter]
     EMERGENCY --> DDB_FETCH[DynamoDB Script Fetch<br/>by condition_id + patient_category<br/>5ms]
     DDB_FETCH --> SCRIPT[Read Deterministic Script<br/>Verbatim — Zero LLM]
@@ -139,7 +144,11 @@ graph TD
 - `is_emergency=true` + `confidence >= CONFIDENCE_THRESHOLD` → DynamoDB fetch by `condition_id` + `patient_profile.category`
 - `is_emergency=true` + `confidence < CONFIDENCE_THRESHOLD` → Nova Pro safety check before DynamoDB
 - `drugs_mentioned[].query_type = "overdose"` → Emergency path immediately, regardless of `is_emergency`
-- `drugs_mentioned[].query_type = "safety|dosage"` → Drug DB query filtered by `patient_profile.category` + `pregnancy_flag`
+- `drugs_mentioned[].query_type = "safety|dosage"` → **Dual-source parallel query:**
+  - Drug DB (DynamoDB) → exact dose, contraindications, pregnancy category (~5ms)
+  - General Triage KB (Bedrock) → counselling + danger signs chunks filtered by `patient_profile.category` + `condition` (~200-500ms)
+  - Both fire via `Promise.all()` — total latency = KB latency (~500ms), Drug DB result waits
+  - Merged context passed to Nova Pro for rich response generation
 - `is_emergency=false` → `clinical_symptoms_english` used as KB query, `patient_profile.category` used as metadata filter
 - `danger_signs_present` non-empty → mid-call escalation trigger regardless of `is_emergency` (Requirement 2.6)
 - `pregnancy_flag = "confirmed"|"possible"` → maternal protocols only, never adult male dosages
@@ -348,7 +357,7 @@ Rules:
 - `is_emergency=true` + `confidence >= CONFIDENCE_THRESHOLD (0.7)` → DynamoDB fetch
 - `is_emergency=true` + `confidence < CONFIDENCE_THRESHOLD (0.7)` → Nova Pro safety check
 - `drugs_mentioned[].query_type = "overdose"` → Emergency path immediately
-- `drugs_mentioned[].query_type = "safety|dosage"` → Drug DB query filtered by `patient_profile`
+- `drugs_mentioned[].query_type = "safety|dosage"` → **Dual-source parallel query** — Drug DB (DynamoDB, ~5ms) + General Triage KB (counselling/danger signs chunks, ~500ms) fired via `Promise.all()`, merged results passed to Nova Pro
 - `is_emergency=false` → General Triage KB with metadata filter
 
 ### 4. Emergency_KB (DynamoDB — Deterministic Scripts)
@@ -965,7 +974,7 @@ interface MasterExtractionResult {
 | `is_emergency=true` + `confidence >= CONFIDENCE_THRESHOLD` | DynamoDB GetItem by `condition_id` + `patient_profile.category` |
 | `is_emergency=true` + `confidence < CONFIDENCE_THRESHOLD` | Nova Pro safety check before DynamoDB |
 | `drugs_mentioned[].query_type = "overdose"` | Emergency path immediately, regardless of `is_emergency` |
-| `drugs_mentioned[].query_type = "safety\|dosage"` | Drug DB query filtered by `patient_profile.category` + `pregnancy_flag` |
+| `drugs_mentioned[].query_type = "safety\|dosage"` | **Dual-source parallel:** Drug DB (DynamoDB, exact dose) + General Triage KB (counselling + danger signs chunks) via `Promise.all()` — merged context to Nova Pro |
 | `drugs_mentioned[].query_type = "availability"` | NLEM lookup |
 | `condition_id = "drug_query"` + no `drugs_mentioned` overdose | Drug DB query only, skip symptom KB |
 | `is_emergency=false` | Bedrock KB query using `clinical_symptoms_english` + `patient_profile.category` metadata filter |

@@ -73,7 +73,7 @@ VaidyaVaani (वैद्यवाणी - "Doctor's Voice") is an AI-powered IV
 
 9. WHEN the MasterExtractionResult contains `drugs_mentioned` with `query_type = "overdose"`, THE Intent_Router SHALL route to the Emergency_KB immediately, regardless of the `is_emergency` flag value.
 
-10. WHEN the MasterExtractionResult contains `drugs_mentioned` with `query_type = "safety"` or `"dosage"`, THE Intent_Router SHALL route to the Drug_KB, filtering by `patient_profile.category` and `pregnancy_flag`.
+10. WHEN the MasterExtractionResult contains `drugs_mentioned` with `query_type = "safety"` or `"dosage"`, THE Intent_Router SHALL fire both the Drug_KB (DynamoDB) and the General_Triage_KB (Bedrock, filtered for counselling and danger signs chunks) in parallel via `Promise.all()`. The Drug_KB returns exact structured dose data (~5ms). The General_Triage_KB returns narrative counselling and danger sign context (~500ms). Both results SHALL be merged and passed to Nova Pro for rich response generation. Total latency is bounded by the KB retrieval time (~500ms), not the sum of both.
 
 11. WHEN the MasterExtractionResult `condition_id` is set, THE Call_Logger SHALL persist the `condition_id` value to DynamoDB for every call, enabling QuickSight analytics to show meaningful call distribution (e.g., "30% maternal_care, 10% chronic_disease, 5% cardiac") rather than undifferentiated "unknown" entries.
 
