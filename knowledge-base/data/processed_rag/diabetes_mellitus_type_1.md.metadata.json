@@ -1,7 +1,7 @@
 {
   "metadataAttributes": {
     "patient_category": "adult",
-    "condition_type": "general",
+    "condition_type": "chronic",
     "source": "ICMR_STW",
     "severity": "moderate",
     "age_group": "adult",

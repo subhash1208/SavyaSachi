@@ -1,8 +1,8 @@
 # VaidyaVaani — Ingestion Blueprint
 **Refined from:** `ingestions-discussion.md` + locked spec architecture  
 **Supersedes:** The "What Goes Into Bedrock KB" section of `VaidyaVaani-Data-Sources-Guide.md`  
-**Last Updated:** March 1, 2026  
-**Status:** LOCKED — aligned with spec design.md tiered architecture
+**Last Updated:** March 3, 2026  
+**Status:** LOCKED — aligned with spec design.md tiered architecture + ETL-PIPELINE-DESIGN.md
 
 ---
 
@@ -53,10 +53,10 @@ breathing_difficulty + pediatric → IMCI pneumonia signs + 108
   "source": "ICMR STW STEMI + WHO Prehospital Guidelines",
   "abcde_script": {
     "airway": { "question_hindi": "...", "question_english": "...", "yes_action": "...", "no_action": "..." },
-    "breathing": { ... },
-    "circulation": { ... },
-    "disability": { ... },
-    "exposure": { ... }
+    "breathing": { "..." : "..." },
+    "circulation": { "..." : "..." },
+    "disability": { "..." : "..." },
+    "exposure": { "..." : "..." }
   },
   "immediate_actions": [
     { "hindi": "Rogi ko lita dijiye", "english": "Keep patient lying down" },
@@ -70,42 +70,103 @@ breathing_difficulty + pediatric → IMCI pneumonia signs + 108
 
 ---
 
-### Layer 2 — Clinical Workflow KB (Bedrock KB — narrative sections only)
+### Layer 2 + Layer 5 — General Triage KB (Bedrock KB — single KB, single index)
 
-**Storage:** Bedrock Knowledge Base → OpenSearch Serverless  
-**Index:** `icmr_workflows_index`  
-**Retrieval:** RAG with metadata filter on `patient_category` + `pregnancy_flag`  
+**Storage:** Bedrock Knowledge Base (`vaidyavaani-kb`) → OpenSearch Serverless  
+**Retrieval:** RAG with metadata filter on chunk-level tags (`patient_category`, `condition`, `topic`, etc.)  
+**ETL Pipeline:** See `ETL-PIPELINE-DESIGN.md` for full details
 
-| Source | What to Extract | Format | Chunk Size |
-|--------|----------------|--------|------------|
-| ICMR STWs (Source 1) — PRIMARY | Narrative advice sections only | PDF direct or Markdown | 400-600 tokens |
-| WHO IMAI narrative (Source 2) | Counselling + treatment explanation text | Markdown chunks | 400-600 tokens |
-| WHO IMCI narrative (Source 3) | "Communicate and counsel" sections | Markdown chunks | 400-600 tokens |
-| RMNCH+A (Source 5) | Maternal health narrative advice | Markdown chunks | 400-600 tokens |
-| WHO Snakebite narrative (Source 4) | Explanation text (NOT first aid steps) | Markdown chunks | 400-600 tokens |
+| Source | What to Extract | Format |
+|--------|----------------|--------|
+| ICMR STWs (Source 1) — PRIMARY | Full clinical content including narrative, dosage tables, algorithm flowcharts | PDF (FM-as-parser handles flowcharts → text) |
+| WHO IMAI narrative (Source 2) | Counselling + treatment explanation text | Markdown |
+| WHO IMCI narrative (Source 3) | "Communicate and counsel" sections | Markdown |
+| RMNCH+A (Source 5) | Maternal health narrative advice | Markdown |
+| WHO Snakebite narrative (Source 4) | Explanation text (NOT first aid steps) | Markdown |
 
-**Do NOT ingest from these sources into Layer 2:**
-- Algorithm flowcharts → convert to Layer 1 JSON scripts instead
-- Drug tables → goes to Layer 3
-- ICD-10 codes → goes to Layer 4
+**Do NOT ingest into the KB:**
+- ICD-10 codes → goes to Layer 4 (DynamoDB lookup)
+- Page numbers, headers, footers, references, administrative content
 - Benchmark datasets (Source 13) → evaluation only, never in KB
 
-**Required metadata tags on every document at upload:**
+**Included in KB:** Drug dosage tables, algorithm flowcharts (converted to text by FM-as-parser), management workflows, counselling text, danger signs. Dosage context is needed for the dual-source merge pattern — when a drug query fires both Drug DB (exact dose) and General Triage KB (counselling + danger signs), the KB chunks must contain dosage context to produce a coherent merged response.
+
+#### Ingestion Flow (3 steps, 2 Lambdas)
+
+```
+Upload .md or .pdf to s3://vaidyavaani--kb-data/kb-ready/
+  → Step 1: Metadata Lambda auto-generates .metadata.json sidecar
+      (document-level tags: source, condition_type, severity)
+  → Step 2: KB Sync (manual or scheduled)
+      → FM-as-parser handles PDFs (flowcharts → structured text)
+      → Semantic chunking (512 tokens, threshold 85)
+      → Chunk Tagger Lambda adds per-chunk tags:
+          patient_category, age_group, topic, condition, urgency, pregnancy_flag
+      → Chunk-level tags overwrite document-level tags on collision
+  → Step 3: Vectors + metadata stored in OpenSearch Serverless
+```
+
+**Key design decisions:**
+- **No BDA** — FM-as-parser handles PDFs better, including flowcharts (reads them visually)
+- **No document splitting** — multi-category documents (e.g., WHO Vol 1 covering adult + pediatric + maternal) get correct per-chunk tags via the Chunk Tagger without needing to be split into separate files
+- **No separate indexes** — single KB, single index. Chunk-level metadata filters handle all routing precision
+- **`patient_category`, `age_group`, `pregnancy_flag` are set per-chunk, NOT per-document** — these fields vary within multi-category documents
+
+#### Metadata Schema
+
+**Document-level (set by Metadata Lambda from filename keywords):**
 ```json
 {
-  "patient_category": "pediatric | adult | maternal | general",
-  "condition_type": "emergency | chronic | general",
-  "source": "WHO_IMCI | ICMR_STW | WHO_IMAI | RMNCH_A | WHO_SNAKEBITE",
-  "severity": "critical | moderate | mild",
-  "age_group": "0-5 | 6-12 | 13-18 | adult | geriatric",
-  "pregnancy_flag": "applicable | not_applicable"
+  "metadataAttributes": {
+    "source":         "WHO_IMCI | WHO_IMAI | ICMR_STW | RMNCH_A | WHO_SNAKEBITE",
+    "condition_type": "chronic | general_triage | general",
+    "severity":       "critical | moderate | mild"
+  }
 }
 ```
 
-**Separate indexes for different document types:**
-- `icmr_workflows_index` — ICMR STWs
-- `maternal_health_index` — RMNCH+A + maternal sections of IMCI
-- `general_education_index` — WHO IMAI/IMCI narrative, general advice
+**Chunk-level (set by Chunk Tagger Lambda from full chunk text):**
+```json
+{
+  "patient_category": "pediatric | adult | maternal | geriatric | general",
+  "age_group":        "0-5 | 6-12 | adult | geriatric",
+  "topic":            "dosage | contraindication | side_effects | emergency_signs | referral | lifestyle | monitoring | counselling | symptoms | diagnosis | prevention | general",
+  "condition":        "diabetes | dengue | diarrhea | headache | jaundice | fever | pneumonia | snakebite | cardiac | general",
+  "urgency":          "emergency | urgent | routine",
+  "pregnancy_flag":   "applicable | not_applicable"
+}
+```
+
+**Chunk-level tags overwrite document-level tags on collision (per AWS docs).** This is the key insight that eliminated the need for document splitting.
+
+#### KB Configuration
+
+| Setting | Value |
+|---|---|
+| KB ID | `N8MPZ0GKA6` (needs recreation with updated config) |
+| Parser | Foundation Model as Parser |
+| Chunking | Semantic |
+| Max buffer size | 3 |
+| Max token size | 512 |
+| Breakpoint threshold | 85 |
+| Embedding model | Titan Embeddings v2 (1024 dimensions) |
+| Search type | Hybrid (semantic + BM25) — enable in console + `searchType: 'HYBRID'` in app calls |
+| Custom Transformation Lambda | `vaidyavaani-kb-chunk-tagger` |
+
+**Note:** Existing KB (`N8MPZ0GKA6`) was created with 300 tokens / threshold 90. Chunking config cannot be modified after creation — KB must be deleted and recreated with 512 tokens / threshold 85.
+
+#### Query-Time Metadata Filters
+
+```python
+# Example: pediatric patient asking about diarrhea treatment
+filter = {
+  "andAll": [
+    {"equals": {"key": "patient_category", "value": "pediatric"}},
+    {"equals": {"key": "condition",        "value": "diarrhea"}},
+    {"equals": {"key": "topic",            "value": "counselling"}}
+  ]
+}
+```
 
 ---
 
@@ -138,7 +199,7 @@ breathing_difficulty + pediatric → IMCI pneumonia signs + 108
 
 **Routing from MasterExtractionResult:**
 - `query_type = "overdose"` → Emergency path immediately (bypass Drug DB)
-- `query_type = "safety" | "dosage"` → Drug DB query filtered by `patient_profile.category` + `pregnancy_flag`
+- `query_type = "safety" | "dosage"` → **Dual-source parallel query:** Drug DB (~5ms) + General Triage KB (~500ms) via `Promise.all()` — merged context to Nova Pro
 - `query_type = "availability"` → NLEM lookup only
 
 **Hackathon scope (7 drugs minimum):**
@@ -179,30 +240,11 @@ paracetamol, ORS, metformin, amlodipine, cotrimoxazole, amoxicillin, antivenom (
 
 ---
 
-### Layer 5 — Embedding KB (Bedrock KB — safe use of RAG)
-
-**Storage:** Bedrock Knowledge Base → OpenSearch Serverless  
-**Index:** `general_education_index`  
-**Use:** Explanatory content only — NOT life-critical decision nodes  
-
-| Source | What to Ingest | Notes |
-|--------|---------------|-------|
-| ICMR STW narrative sections | Explanatory text, counselling | Already covered in Layer 2 |
-| WHO IMCI "Communicate and counsel" | Parent education, follow-up advice | Chunk by topic |
-| RMNCH+A maternal advice | Antenatal care education | Chunk by trimester |
-| Open symptom-disease datasets (Source 8) | Supplementary mapping | Validate against ICMR first |
-
-**Chunk size:** 400-600 tokens  
-**Overlap:** 50 tokens between chunks  
-**Embedding model:** Titan Embeddings v2 (AWS-native, low latency)  
-**Search type:** Hybrid (semantic + BM25 keyword) — enable in Bedrock KB settings
-
----
-
 ## What Does NOT Go Into Any KB
 
 | Item | Where It Lives | Why |
 |------|---------------|-----|
+| Emergency ABCDE scripts | DynamoDB `vaidyavaani-emergency-scripts` (Layer 1) — handwritten JSON, never automated | Must be deterministic, auditable, zero hallucination |
 | ABCDE framework | Structure of emergency scripts | Framework, not a document |
 | 108 vs 102 dispatch logic | Lambda routing code | Operational logic |
 | ICD-10 codes | Hardcoded in scripts + DynamoDB | Tags/metadata, not searchable content |
@@ -226,15 +268,20 @@ paracetamol, ORS, metformin, amlodipine, cotrimoxazole, amoxicillin, antivenom (
 - [ ] Test overdose routing → emergency path
 
 ### Day 3 — Layer 2 + 5 (Bedrock KB)
-- [ ] Download 10 ICMR STWs (demo-relevant conditions)
-- [ ] Convert WHO IMCI child assessment + ORS sections to Markdown
-- [ ] Add metadata tags to every document before upload
-- [ ] Upload to S3 → sync with Bedrock KB
-- [ ] Enable Hybrid Search in Bedrock KB settings
-- [ ] Test retrieval with `patient_category` metadata filter
+- [ ] Upload 10 ICMR STW PDFs to `s3://vaidyavaani--kb-data/kb-ready/`
+- [ ] Upload WHO IMCI/IMAI/RMNCH+A markdown files to `kb-ready/`
+- [ ] Metadata Lambda auto-generates `.metadata.json` sidecars
+- [ ] Delete existing KB (`N8MPZ0GKA6`) and recreate with updated config:
+  - FM-as-parser enabled
+  - Semantic chunking: 512 tokens, threshold 85
+  - Custom transformation Lambda: `vaidyavaani-kb-chunk-tagger`
+- [ ] Sync KB — FM-as-parser converts PDFs, chunk tagger adds per-chunk metadata
+- [ ] Enable Hybrid Search in Bedrock KB console + set `searchType: 'HYBRID'` in app calls
+- [ ] Test retrieval with `patient_category` + `condition` metadata filters
+- [ ] Verify flowchart content is properly converted to text (check a chunk from an ICMR STW with algorithm flowcharts)
 
 ---
 
 ## Pitch Line for Judges
 
-> "We use a tiered ingestion architecture — not a single vector database. Emergency protocols are deterministic JSON in DynamoDB, retrieved in 5ms with zero LLM involvement. Drug safety is a structured NLEM database, never guessed by an LLM. Only explanatory clinical narrative goes into the Bedrock vector KB, filtered by patient category before every query. This is how you build medical AI that is safe enough to deploy at national scale."
+> "We use a tiered ingestion architecture — not a single vector database. Emergency protocols are deterministic JSON in DynamoDB, retrieved in 5ms with zero LLM involvement. Drug safety is a structured NLEM database, never guessed by an LLM. Only explanatory clinical narrative goes into the Bedrock vector KB, filtered by patient category at the chunk level before every query. This is how you build medical AI that is safe enough to deploy at national scale."
