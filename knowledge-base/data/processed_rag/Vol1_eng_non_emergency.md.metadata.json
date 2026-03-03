@@ -1,6 +1,10 @@
 {
-  "source": "9789241548281_Vol1_eng_non_emergency.pdf",
-  "patient_category": "adult",
-  "condition_type": "general",
-  "severity": "moderate"
+  "metadataAttributes": {
+    "patient_category": "adult",
+    "condition_type": "general",
+    "source": "ICMR_STW",
+    "severity": "moderate",
+    "age_group": "adult",
+    "pregnancy_flag": "not_applicable"
+  }
 }
