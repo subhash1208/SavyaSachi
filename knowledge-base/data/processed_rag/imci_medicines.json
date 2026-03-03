@@ -1,0 +1,189 @@
+[
+  {
+    "drug_name": "cotrimoxazole",
+    "dose_child": "See age/weight table for oral syrup. Usually 5ml (40mg/200mg) for 2 to 12 months.",
+    "dose_adult": "",
+    "max_daily_adult": "",
+    "max_daily_child": "",
+    "contraindications": [
+      "infant less than 1 month",
+      "premature",
+      "jaundiced"
+    ],
+    "pregnancy_category": "",
+    "renal_adjustment": "",
+    "source": "WHO_IMCI",
+    "query_type": "dosage"
+  },
+  {
+    "drug_name": "cotrimoxazole",
+    "dose_child": "See age/weight table for oral syrup. Usually 5ml (40mg/200mg) for 2 to 12 months.",
+    "dose_adult": "",
+    "max_daily_adult": "",
+    "max_daily_child": "",
+    "contraindications": [
+      "infant less than 1 month",
+      "premature",
+      "jaundiced"
+    ],
+    "pregnancy_category": "",
+    "renal_adjustment": "",
+    "source": "WHO_IMCI",
+    "query_type": "safety",
+    "safety_notes": ""
+  },
+  {
+    "drug_name": "amoxycillin",
+    "dose_child": "See age/weight table for syrup. Usually 5ml (125mg/5ml) for 2 to 12 months.",
+    "dose_adult": "",
+    "max_daily_adult": "",
+    "max_daily_child": "",
+    "contraindications": [],
+    "pregnancy_category": "",
+    "renal_adjustment": "",
+    "source": "WHO_IMCI",
+    "query_type": "dosage"
+  },
+  {
+    "drug_name": "amoxycillin",
+    "dose_child": "See age/weight table for syrup. Usually 5ml (125mg/5ml) for 2 to 12 months.",
+    "dose_adult": "",
+    "max_daily_adult": "",
+    "max_daily_child": "",
+    "contraindications": [],
+    "pregnancy_category": "",
+    "renal_adjustment": "",
+    "source": "WHO_IMCI",
+    "query_type": "safety",
+    "safety_notes": ""
+  },
+  {
+    "drug_name": "chloroquine",
+    "dose_child": "Given for 3 days. Dose reduced on 3rd day unless <10kg.",
+    "dose_adult": "",
+    "max_daily_adult": "",
+    "max_daily_child": "",
+    "contraindications": [],
+    "pregnancy_category": "",
+    "renal_adjustment": "",
+    "source": "WHO_IMCI",
+    "query_type": "dosage"
+  },
+  {
+    "drug_name": "chloroquine",
+    "dose_child": "Given for 3 days. Dose reduced on 3rd day unless <10kg.",
+    "dose_adult": "",
+    "max_daily_adult": "",
+    "max_daily_child": "",
+    "contraindications": [],
+    "pregnancy_category": "",
+    "renal_adjustment": "",
+    "source": "WHO_IMCI",
+    "query_type": "safety",
+    "safety_notes": "Itching is a possible side effect."
+  },
+  {
+    "drug_name": "paracetamol",
+    "dose_child": "One dose every 6 hours or until ear pain is gone.",
+    "dose_adult": "",
+    "max_daily_adult": "",
+    "max_daily_child": "",
+    "contraindications": [],
+    "pregnancy_category": "",
+    "renal_adjustment": "",
+    "source": "WHO_IMCI",
+    "query_type": "dosage"
+  },
+  {
+    "drug_name": "paracetamol",
+    "dose_child": "One dose every 6 hours or until ear pain is gone.",
+    "dose_adult": "",
+    "max_daily_adult": "",
+    "max_daily_child": "",
+    "contraindications": [],
+    "pregnancy_category": "",
+    "renal_adjustment": "",
+    "source": "WHO_IMCI",
+    "query_type": "safety",
+    "safety_notes": ""
+  },
+  {
+    "drug_name": "vitamin a",
+    "dose_child": "Give 2 doses. One in clinic, one at home.",
+    "dose_adult": "",
+    "max_daily_adult": "",
+    "max_daily_child": "",
+    "contraindications": [],
+    "pregnancy_category": "",
+    "renal_adjustment": "",
+    "source": "WHO_IMCI",
+    "query_type": "dosage"
+  },
+  {
+    "drug_name": "vitamin a",
+    "dose_child": "Give 2 doses. One in clinic, one at home.",
+    "dose_adult": "",
+    "max_daily_adult": "",
+    "max_daily_child": "",
+    "contraindications": [],
+    "pregnancy_category": "",
+    "renal_adjustment": "",
+    "source": "WHO_IMCI",
+    "query_type": "safety",
+    "safety_notes": "Danger of overdose if given repeatedly in short time."
+  },
+  {
+    "drug_name": "iron",
+    "dose_child": "One dose daily for 14 days.",
+    "dose_adult": "",
+    "max_daily_adult": "",
+    "max_daily_child": "",
+    "contraindications": [
+      "taking sulfadoxine-pyrimethamine"
+    ],
+    "pregnancy_category": "",
+    "renal_adjustment": "",
+    "source": "WHO_IMCI",
+    "query_type": "dosage"
+  },
+  {
+    "drug_name": "iron",
+    "dose_child": "One dose daily for 14 days.",
+    "dose_adult": "",
+    "max_daily_adult": "",
+    "max_daily_child": "",
+    "contraindications": [
+      "taking sulfadoxine-pyrimethamine"
+    ],
+    "pregnancy_category": "",
+    "renal_adjustment": "",
+    "source": "WHO_IMCI",
+    "query_type": "safety",
+    "safety_notes": "May make stools black. Overdose can be fatal."
+  },
+  {
+    "drug_name": "mebendazole",
+    "dose_child": "500 mg as a single dose.",
+    "dose_adult": "",
+    "max_daily_adult": "",
+    "max_daily_child": "",
+    "contraindications": [],
+    "pregnancy_category": "",
+    "renal_adjustment": "",
+    "source": "WHO_IMCI",
+    "query_type": "dosage"
+  },
+  {
+    "drug_name": "mebendazole",
+    "dose_child": "500 mg as a single dose.",
+    "dose_adult": "",
+    "max_daily_adult": "",
+    "max_daily_child": "",
+    "contraindications": [],
+    "pregnancy_category": "",
+    "renal_adjustment": "",
+    "source": "WHO_IMCI",
+    "query_type": "safety",
+    "safety_notes": ""
+  }
+]

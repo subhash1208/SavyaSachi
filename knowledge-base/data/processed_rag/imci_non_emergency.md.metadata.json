@@ -1,0 +1,10 @@
+{
+  "metadataAttributes": {
+    "patient_category": "pediatric",
+    "condition_type": "general",
+    "source": "WHO_IMCI",
+    "severity": "moderate",
+    "age_group": "0-5",
+    "pregnancy_flag": "not_applicable"
+  }
+}
