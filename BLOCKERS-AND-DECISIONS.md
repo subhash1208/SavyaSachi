@@ -5,7 +5,7 @@
 
 ## BLOCKER #1 — Amazon Connect AISPL Restriction
 **Date:** February 28, 2026  
-**Status:** WORKAROUND IN PLACE
+**Status:** RESOLVED — FINAL WORKAROUND: TWILIO (see update below)
 
 ### What Happened
 AWS account is AISPL (Amazon Internet Services Private Limited — India's AWS subsidiary).
@@ -19,46 +19,51 @@ by AWS. Wise required $20 minimum top-up which was not feasible.
 - ❌ Wise virtual card — $20 minimum top-up required
 - ❌ PayPal — not accepted by AWS
 - ✅ Emailed Hack2Skill support (support@hack2skill.com) — awaiting response
+- ❌ Exotel — set up initially, abandoned due to poor developer UI and webhook complexity
 
-### Decision Made
-**Switch to Exotel + Amazon Polly (Kajal voice) instead of Amazon Connect + Nova Sonic**
+### Initial Decision (Abandoned)
+~~Switch to Exotel + Amazon Polly (Kajal voice)~~ — tried and abandoned. Exotel UI was
+difficult to work with and the ExoML webhook format added unnecessary complexity.
 
-### Impact
-| Feature | Original Plan | Current Plan |
-|---------|--------------|--------------|
-| IVR Provider | Amazon Connect | Exotel |
-| Voice (TTS) | Nova 2 Sonic (Arjun/Kiara) | Amazon Polly (Kajal — Hindi neural) |
-| Speech-to-Text | Nova 2 Sonic (unified) | Amazon Transcribe |
-| Hinglish support | Native | Limited |
-| Cost per call | ₹42 | ₹67 (original architecture) |
-| Indian phone number | Yes | Yes |
-| AI brain | Claude Sonnet 4.6 | Claude Sonnet 4.6 (unchanged) |
-| Call recordings | Auto (Connect) | Exotel + S3 (manual) |
-| Contact Lens analytics | Yes | No (use CloudWatch instead) |
+### Final Decision (CURRENT — March 1, 2026)
+**Switch to Twilio + Amazon Polly (Aditi voice)**
 
-### New Architecture
+Twilio trial account created. Number obtained: **+1 507 776 8060** ($15.50 trial credits).
+Twilio uses TwiML (standard XML) which is simpler to work with than ExoML.
+Voice: Amazon Polly **Aditi** (Hindi neural) — referenced via `<Say voice="Polly.Aditi">` in TwiML.
+
+### Final Architecture (CURRENT)
 ```
-Caller → Exotel IVR (Indian number, ₹1/min)
-       → Webhook → API Gateway → Lambda (intent router)
+Caller → Twilio IVR (+1 507 776 8060, TwiML)
+       → Webhook → API Gateway → Lambda (vaidyavaani-exotel-webhook, Node.js 20.x ESM)
        → Amazon Transcribe (STT — voice to text)
-       → Amazon Bedrock Claude Sonnet 4.6 (AI triage reasoning)
+       → Amazon Bedrock Nova Pro (AI triage reasoning, us.amazon.nova-pro-v1:0)
        → Bedrock Knowledge Base (ICMR/WHO protocols)
-       → Amazon Polly - Kajal voice (TTS — text to voice)
-       → Lambda → Exotel → speaks response back to caller
+       → Amazon Polly - Aditi voice (TTS — Hindi neural)
+       → Lambda returns TwiML → Twilio speaks response back to caller
        → Amazon SNS (SMS to patient/family/ASHA)
        → DynamoDB (call logging)
 ```
 
-### Pitch Angle for Judges
-> "We integrated with Exotel for the India prototype due to AISPL account 
-> restrictions — which is actually more cost-effective at ₹1/min vs Amazon 
-> Connect's ₹3.20/min for Indian deployments. The production architecture 
-> uses Amazon Connect + Nova 2 Sonic for the unified speech-to-speech 
-> experience with native Hindi Arjun/Kiara voices."
+### API Gateway URL
+`https://lur01vchk8.execute-api.us-east-1.amazonaws.com/default/vaidyavaani-exotel-webhook`
 
-### Pending Resolution
-- Hack2Skill may provide a standard AWS account → switch back to Connect + Nova Sonic
-- If resolved before Mar 2, switch back. If after Mar 2, stay with Exotel for submission.
+### Impact vs Original Plan
+| Feature | Original Plan | Current Plan |
+|---------|--------------|--------------|
+| IVR Provider | Amazon Connect | Twilio (+1 507 776 8060) |
+| Voice (TTS) | Nova 2 Sonic (Arjun/Kiara) | Amazon Polly (Aditi — Hindi neural) |
+| Speech-to-Text | Nova 2 Sonic (unified) | Amazon Transcribe |
+| AI model | Claude Sonnet 4.6 | Nova Pro 1.0 (AISPL blocker — see Blocker #2) |
+| Hinglish support | Native | Limited |
+| Indian phone number | Yes | No (US trial number — demo only) |
+| Call recordings | Auto (Connect) | Twilio + S3 (manual) |
+| Contact Lens analytics | Yes | No (use CloudWatch instead) |
+
+### Pitch Angle for Judges
+> "We used Twilio for the prototype IVR due to AISPL account restrictions on Amazon Connect.
+> The production architecture uses Amazon Connect + Nova 2 Sonic for the unified
+> speech-to-speech experience with native Hindi Arjun/Kiara voices and Indian toll-free numbers."
 
 ---
 
@@ -100,14 +105,30 @@ Stage 2: Nova Lite master extraction (150ms) → routes both paths
 
 ---
 
+## KNOWN LIMITATION #1 — Emotion Detection Not Available in Prototype
+**Date:** March 2, 2026
+**Status:** KNOWN LIMITATION — prototype workaround in place
 
-| Item | Owner | Status |
+### What Happened
+The design specifies emotion detection (panic/distress from voice tone) via Amazon Nova 2 Sonic + Amazon Connect. Both are blocked on AISPL. Twilio transcribes speech to plain text — no audio stream analysis, no tone detection.
+
+### Impact
+`emotionResult` field in `ClassificationInput` is never populated in the prototype. The emotion escalation branch in `classifyIntent()` never fires.
+
+### Prototype Workaround
+Nova Lite extracts `severity_signal: "critical|urgent|mild"` from the utterance text. If `severity_signal = "critical"` is returned, the call handler treats it as a high-urgency signal. This detects urgency in words, not panic in voice — a reasonable text-based approximation.
+
+### Production Fix
+Amazon Connect + Nova 2 Sonic handles emotion detection natively from the audio stream. No code change needed — just populate `emotionResult` from the Connect contact flow event.
+
+---
 |------|-------|--------|
 | Email Hack2Skill about AISPL | Subhash | ✅ Sent |
-| Exotel account setup | Subhash | ⬜ Next step |
+| Exotel account setup | Subhash | ✅ Abandoned — switched to Twilio |
+| Twilio account + number | Subhash | ✅ Done (+1 507 776 8060) |
 | WhatsApp Business API | Member 4 | ⬜ In progress |
 | AWS billing alarms | Subhash | ⬜ Pending |
 
 ---
 
-**Last Updated:** February 28, 2026
+**Last Updated:** March 1, 2026

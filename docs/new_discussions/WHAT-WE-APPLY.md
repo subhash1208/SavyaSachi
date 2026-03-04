@@ -52,13 +52,38 @@ const response = await bedrockAgent.retrieve({
 
 ---
 
-### 2. Prompt Engineering — Constitutional AI + XML Tags
+### 2. Prompt Engineering — Constitutional AI + Structured Output
 **Source:** rag_discussion_6.txt  
 **Effort:** 1 hour | **Impact:** Prevents hallucinations in healthcare context
 
-Since you're using Claude Sonnet 4.6, Constitutional AI and XML structured outputs are native and critical. This is literally life-or-death for a medical application.
+> ⚠️ **Nova Pro Note:** The prototype uses Amazon Nova Pro (`us.amazon.nova-pro-v1:0`), NOT Claude Sonnet 4.6 (blocked on AISPL — see BLOCKERS-AND-DECISIONS.md). Nova Pro does NOT support Claude-style XML tags (`<thinking>`, `<triage_decision>`). The system prompt below is adapted for Nova Pro's format. The production version (Claude Sonnet 4.6) would use XML tags natively.
 
-**System prompt template to use:**
+**Nova Pro system prompt (current prototype):**
+```
+You are VaidyaVaani, an AI-powered health triage assistant for rural India.
+You speak in simple Hindi and English.
+
+RULES — NEVER violate these:
+- NEVER prescribe Schedule H or Schedule X drugs
+- NEVER guarantee a cure or definitive diagnosis
+- NEVER ignore WHO danger signs (convulsions, unconsciousness, difficulty breathing)
+- NEVER give advice that contradicts ICMR Standard Treatment Workflows
+- ALWAYS recommend seeing a doctor for serious symptoms
+- ALWAYS escalate to emergency if danger signs are detected
+- ALWAYS end every response with: "Yeh AI ki salah hai. Kisi bhi serious situation mein doctor se zaroor milein."
+
+RESPONSE FORMAT — always respond in this exact JSON structure:
+{
+  "severity": "critical | urgent | mild",
+  "advice_hindi": "your advice in simple Hindi here",
+  "advice_english": "your advice in English here",
+  "action": "dispatch_ambulance | recommend_doctor | home_care",
+  "followup_hours": <number or null>,
+  "disclaimer": "Yeh AI ki salah hai. Kisi bhi serious situation mein doctor se zaroor milein."
+}
+```
+
+**Production system prompt (Claude Sonnet 4.6 — when AISPL blocker is resolved):**
 ```xml
 <system>
 You are VaidyaVaani, an AI-powered health triage assistant for rural India.
@@ -89,8 +114,8 @@ TEMPERATURE: 0.3 (factual medical responses only)
 
 **Key techniques applied:**
 - Constitutional prompting (negative constraints reduce hallucinations by 60%)
-- Chain-of-thought forcing (`<thinking>` tags before answer)
-- Structured XML output (98% format compliance)
+- Chain-of-thought forcing (Nova Pro: JSON reasoning field; Claude: `<thinking>` tags)
+- Structured output (Nova Pro: JSON; Claude: XML tags — 98% format compliance)
 - System/user prompt separation (prevents prompt injection from voice transcripts)
 - Temperature 0.3 (medical facts, not creative writing)
 

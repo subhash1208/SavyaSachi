@@ -1,0 +1,308 @@
+<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3300" pageHeight="2339" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+
+    <!-- ==================== PHASE 0 HEADER ==================== -->
+    <mxCell id="p0_header" value="PHASE 0 — Before Any Call (Ingestion, Done Once)" style="text;html=1;strokeColor=none;fillColor=#dae8fc;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=14;fontStyle=1;arcSize=5;" vertex="1" parent="1">
+      <mxGeometry x="40" y="40" width="700" height="40" as="geometry" />
+    </mxCell>
+
+    <!-- Source docs -->
+    <mxCell id="p0_icmr" value="ICMR Flowchart PDFs&#xa;(4 selected docs)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="40" y="110" width="160" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="p0_imai" value="WHO IMAI Vol1&#xa;(Narrative PDF)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="220" y="110" width="160" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="p0_imci" value="WHO IMCI&#xa;(Narrative PDF)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="400" y="110" width="160" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="p0_drug" value="Drug Tables&#xa;(IMAI Medicines PDF)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="580" y="110" width="160" height="50" as="geometry" />
+    </mxCell>
+
+    <!-- Processing steps -->
+    <mxCell id="p0_chatgpt" value="ChatGPT Vision&#xa;→ Markdown paragraphs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="40" y="210" width="160" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="p0_textract1" value="Amazon Textract&#xa;Layout → Markdown chunks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="220" y="210" width="160" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="p0_textract2" value="Amazon Textract&#xa;Layout → Markdown chunks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="400" y="210" width="160" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="p0_textract3" value="Amazon Textract&#xa;Tables → DynamoDB items" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="580" y="210" width="160" height="50" as="geometry" />
+    </mxCell>
+
+    <!-- Arrows source → processing -->
+    <mxCell id="e_icmr_chatgpt" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p0_icmr" target="p0_chatgpt" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_imai_tx1" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p0_imai" target="p0_textract1" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_imci_tx2" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p0_imci" target="p0_textract2" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_drug_tx3" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p0_drug" target="p0_textract3" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+    <!-- S3 + Bedrock KB -->
+    <mxCell id="p0_s3" value="Amazon S3&#xa;s3://vaidyavaani-processed-kb/&#xa;(Markdown + metadata.json sidecars)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="130" y="310" width="280" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="p0_ddb_drug" value="DynamoDB&#xa;vaidyavaani-drug-db&#xa;PK: drug_name, SK: query_type" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="580" y="310" width="160" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="p0_ddb_emerg" value="DynamoDB&#xa;vaidyavaani-emergency-scripts&#xa;PK: condition_id, SK: patient_category&#xa;(hand-written JSON, 8 scripts)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="760" y="310" width="200" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- Bedrock KB sync -->
+    <mxCell id="p0_bedrock_sync" value="Bedrock KB Sync&#xa;Titan Embeddings v2&#xa;→ converts each chunk to vector&#xa;→ stores in OpenSearch Serverless" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="130" y="410" width="280" height="60" as="geometry" />
+    </mxCell>
+    <mxCell id="p0_opensearch" value="OpenSearch Serverless&#xa;(Vector Index)&#xa;patient_category metadata filter&#xa;Hybrid Search: semantic + BM25" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="130" y="520" width="280" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- Arrows processing → storage -->
+    <mxCell id="e_chatgpt_s3" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p0_chatgpt" target="p0_s3" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_tx1_s3" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p0_textract1" target="p0_s3" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_tx2_s3" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p0_textract2" target="p0_s3" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_tx3_ddb" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p0_textract3" target="p0_ddb_drug" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_s3_sync" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p0_s3" target="p0_bedrock_sync" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_sync_os" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p0_bedrock_sync" target="p0_opensearch" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+    <mxCell id="p0_ready" value="✅ System ready to receive calls" style="text;html=1;strokeColor=none;fillColor=#d5e8d4;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="130" y="610" width="280" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="e_os_ready" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p0_opensearch" target="p0_ready" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+    <!-- ==================== PHASE 1 HEADER ==================== -->
+    <mxCell id="p1_header" value="PHASE 1 — Call Arrives" style="text;html=1;strokeColor=none;fillColor=#dae8fc;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="1040" y="40" width="400" height="40" as="geometry" />
+    </mxCell>
+
+    <mxCell id="p1_caller" value="🧑 Rural Caller&#xa;Dials +1 507 776 8060" style="ellipse;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="1100" y="110" width="200" height="60" as="geometry" />
+    </mxCell>
+    <mxCell id="p1_twilio" value="Twilio IVR&#xa;+1 507 776 8060&#xa;Receives inbound call" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="1100" y="210" width="200" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="p1_apigw" value="API Gateway&#xa;POST /incoming" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="1100" y="300" width="200" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="p1_lambda1" value="Lambda — Turn 1&#xa;vaidyavaani-webhook&#xa;Node.js 20.x ESM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="1100" y="390" width="200" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="p1_state_create" value="DynamoDB — Create ConversationState&#xa;{ callSid: 'CA123', turn: 1,&#xa;  language: 'hindi', triagePath: 'unknown',&#xa;  ttl: now + 3600s }" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="1040" y="480" width="320" height="60" as="geometry" />
+    </mxCell>
+    <mxCell id="p1_twiml1" value="Returns TwiML:&#xa;&lt;Say voice='Polly.Aditi'&gt;&#xa;VaidyaVaani. Apni takleef batayein.&lt;/Say&gt;&#xa;&lt;Gather input='speech dtmf' action='/gather'&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="1040" y="580" width="320" height="60" as="geometry" />
+    </mxCell>
+    <mxCell id="p1_polly" value="Amazon Polly — Aditi Voice&#xa;Hindi Neural TTS&#xa;Plays greeting to caller" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="1100" y="680" width="200" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="p1_caller_speaks" value="Caller speaks:&#xa;'seene mein dard ho raha hai'" style="ellipse;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontStyle=2;" vertex="1" parent="1">
+      <mxGeometry x="1080" y="770" width="240" height="50" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e_caller_twilio" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p1_caller" target="p1_twilio" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_twilio_apigw" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p1_twilio" target="p1_apigw" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_apigw_lambda1" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p1_apigw" target="p1_lambda1" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_lambda1_state" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p1_lambda1" target="p1_state_create" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_lambda1_twiml" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p1_lambda1" target="p1_twiml1" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_twiml_polly" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p1_twiml1" target="p1_polly" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_polly_speaks" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p1_polly" target="p1_caller_speaks" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+    <!-- ==================== PHASE 2 HEADER ==================== -->
+    <mxCell id="p2_header" value="PHASE 2 — Intent Classification (The Brain)" style="text;html=1;strokeColor=none;fillColor=#dae8fc;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="1560" y="40" width="600" height="40" as="geometry" />
+    </mxCell>
+
+    <mxCell id="p2_twilio_post" value="Twilio POST → API Gateway&#xa;/gather endpoint — Turn 2&#xa;Body: { SpeechResult: 'seene mein dard ho raha hai',&#xa;CallSid: 'CA123' }" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="1580" y="110" width="320" height="60" as="geometry" />
+    </mxCell>
+    <mxCell id="p2_lambda2" value="Lambda — Turn 2&#xa;Loads ConversationState from DynamoDB&#xa;by CallSid" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="1660" y="220" width="240" height="50" as="geometry" />
+    </mxCell>
+
+    <!-- Promise.race box -->
+    <mxCell id="p2_race_box" value="Promise.race() — PARALLEL EXECUTION" style="text;html=1;strokeColor=#6c8ebf;fillColor=#dae8fc;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="1560" y="310" width="620" height="35" as="geometry" />
+    </mxCell>
+
+    <mxCell id="p2_stage1" value="Stage 1 — Keyword Scan (5ms)&#xa;Lambda only, no LLM&#xa;'seene mein dard' = 4 words&#xa;→ matches cardiac keyword&#xa;→ WINS the race ✅&#xa;→ Stage 2 abandoned" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="1560" y="360" width="260" height="110" as="geometry" />
+    </mxCell>
+    <mxCell id="p2_stage2" value="Stage 2 — Nova Lite Master Extraction (~150ms)&#xa;amazon.nova-lite-v1:0&#xa;Fires simultaneously with Stage 1&#xa;Returns MasterExtractionResult JSON:&#xa;{ is_emergency: true,&#xa;  condition_id: 'cardiac',&#xa;  patient_profile: { category: 'adult' },&#xa;  clinical_symptoms_english: ['chest pain'],&#xa;  confidence: 0.95 }&#xa;(abandoned if Stage 1 wins)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="1840" y="360" width="320" height="160" as="geometry" />
+    </mxCell>
+
+    <mxCell id="p2_route_decision" value="Routing Decision&#xa;Stage 1 won → is_emergency=true&#xa;condition_id='cardiac', patient='adult'&#xa;→ Route to LAYER 1 (Emergency KB)" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="1620" y="510" width="320" height="80" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e_post_lambda2" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p2_twilio_post" target="p2_lambda2" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_lambda2_race" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p2_lambda2" target="p2_race_box" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_race_s1" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p2_race_box" target="p2_stage1" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_race_s2" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p2_race_box" target="p2_stage2" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_s1_route" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p2_stage1" target="p2_route_decision" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+    <!-- Stage 3 note -->
+    <mxCell id="p2_stage3" value="Stage 3 — Nova Pro Safety Check (~2s)&#xa;ONLY triggered when:&#xa;is_emergency=true AND confidence &lt; 0.7&#xa;(NOT triggered in this example — confidence=0.95)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;fontStyle=2;" vertex="1" parent="1">
+      <mxGeometry x="1840" y="510" width="320" height="80" as="geometry" />
+    </mxCell>
+
+    <!-- ==================== PHASE 3A HEADER ==================== -->
+    <mxCell id="p3a_header" value="PHASE 3A — Emergency Path (Layer 1 — DynamoDB Deterministic Scripts)" style="text;html=1;strokeColor=none;fillColor=#f8cecc;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="40" y="700" width="760" height="40" as="geometry" />
+    </mxCell>
+
+    <mxCell id="p3a_ddb_get" value="DynamoDB GetItem (5ms) — LAYER 1&#xa;Table: vaidyavaani-emergency-scripts&#xa;PK: 'cardiac', SK: 'adult'&#xa;NO LLM INVOLVED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="40" y="770" width="280" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="p3a_script" value="Returns Pre-Written JSON Script:&#xa;{&#xa;  abcde_script: {&#xa;    airway: { question_hindi: 'Kya rogi hosh mein hai?' },&#xa;    breathing: { ... },&#xa;    circulation: { ... }&#xa;  },&#xa;  immediate_actions: [&#xa;    'Rogi ko lita dijiye',&#xa;    'Aspirin 325mg dijiye'&#xa;  ],&#xa;  do_not_actions: ['Paani mat dijiye'],&#xa;  icd10_code: 'I21.9',&#xa;  dispatch_type: '108'&#xa;}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="360" y="760" width="280" height="180" as="geometry" />
+    </mxCell>
+    <mxCell id="p3a_verbatim" value="⚠️ ZERO LLM GENERATION&#xa;Script read VERBATIM to caller&#xa;Lambda returns TwiML:&#xa;&lt;Say voice='Polly.Aditi'&gt;&#xa;Rogi ko lita dijiye. Aspirin 325mg dijiye...&lt;/Say&gt;&#xa;&lt;Gather&gt; ← next ABCDE step" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="40" y="880" width="280" height="100" as="geometry" />
+    </mxCell>
+    <mxCell id="p3a_icd4" value="Layer 4 — ICD-10&#xa;Hardcoded in script: 'I21.9'&#xa;Written to CallRecord silently" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="360" y="970" width="280" height="60" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e_route_ddb" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p2_route_decision" target="p3a_ddb_get" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_ddb_script" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p3a_ddb_get" target="p3a_script" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_ddb_verbatim" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p3a_ddb_get" target="p3a_verbatim" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_script_icd4" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p3a_script" target="p3a_icd4" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+    <!-- ==================== PHASE 3B HEADER ==================== -->
+    <mxCell id="p3b_header" value="PHASE 3B — Drug Query Path (Layer 3 — DynamoDB Drug DB)" style="text;html=1;strokeColor=none;fillColor=#e1d5e7;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="40" y="1060" width="760" height="40" as="geometry" />
+    </mxCell>
+
+    <mxCell id="p3b_caller" value="Caller: 'Paracetamol pregnant hoon toh le sakti hoon?'" style="ellipse;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontStyle=2;" vertex="1" parent="1">
+      <mxGeometry x="40" y="1120" width="320" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="p3b_nova_lite" value="Nova Lite Extracts:&#xa;drugs_mentioned: [{ name: 'paracetamol', query_type: 'safety' }]&#xa;pregnancy_flag: 'confirmed'" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="40" y="1200" width="320" height="60" as="geometry" />
+    </mxCell>
+    <mxCell id="p3b_ddb" value="DynamoDB GetItem (5ms) — LAYER 3&#xa;Table: vaidyavaani-drug-db&#xa;PK: 'paracetamol', SK: 'safety'&#xa;Filter: pregnancy_flag='confirmed'" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="40" y="1300" width="320" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="p3b_result" value="Returns:&#xa;{ pregnancy_category: 'B — generally safe',&#xa;  contraindications: ['hepatic impairment'],&#xa;  source: 'India NLEM 2022' }" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="400" y="1300" width="280" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="p3b_nova_pro" value="Nova Pro formats response:&#xa;'Paracetamol pregnancy mein generally safe hai category B.&#xa;Lekin liver ki problem ho toh mat lijiye.&#xa;Doctor se confirm zaroor karein.'&#xa;+ AI disclaimer appended" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="40" y="1410" width="400" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="p3b_polly" value="Polly Aditi speaks response to caller" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="40" y="1510" width="280" height="40" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e_p3b_caller_nl" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p3b_caller" target="p3b_nova_lite" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_p3b_nl_ddb" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p3b_nova_lite" target="p3b_ddb" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_p3b_ddb_result" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p3b_ddb" target="p3b_result" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_p3b_result_np" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p3b_result" target="p3b_nova_pro" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_p3b_np_polly" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p3b_nova_pro" target="p3b_polly" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+    <!-- ==================== PHASE 3C HEADER ==================== -->
+    <mxCell id="p3c_header" value="PHASE 3C — General Triage Path (Layer 2 + 5 — Bedrock KB + RAG)" style="text;html=1;strokeColor=none;fillColor=#d5e8d4;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="900" y="700" width="800" height="40" as="geometry" />
+    </mxCell>
+
+    <mxCell id="p3c_caller" value="Caller: 'Mere bachche ko 3 din se bukhar hai'" style="ellipse;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontStyle=2;" vertex="1" parent="1">
+      <mxGeometry x="960" y="770" width="320" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="p3c_nova_lite" value="Nova Lite Extracts:&#xa;is_emergency: false&#xa;condition_id: 'general_fever'&#xa;patient_profile: { category: 'pediatric' }&#xa;clinical_symptoms_english: ['fever', '3 days duration']" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="960" y="850" width="320" height="80" as="geometry" />
+    </mxCell>
+    <mxCell id="p3c_bedrock_retrieve" value="Bedrock KB Retrieve — LAYER 2+5&#xa;query: 'fever 3 days pediatric treatment'&#xa;filter: { patient_category: 'pediatric' }&#xa;&#xa;Titan Embeddings converts query → vector (~50ms)&#xa;OpenSearch finds closest matching chunks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="960" y="970" width="360" height="90" as="geometry" />
+    </mxCell>
+    <mxCell id="p3c_chunks" value="Retrieved Chunks:&#xa;→ WHO IMCI: 'Child fever &gt;3 days: check for malaria,&#xa;   dengue danger signs, give paracetamol for comfort...'&#xa;→ ICMR STW: 'Pediatric fever: ORS if dehydrated,&#xa;   danger signs: convulsions, not drinking, fast breathing...'" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="1360" y="970" width="320" height="90" as="geometry" />
+    </mxCell>
+    <mxCell id="p3c_nova_pro" value="Nova Pro (us.amazon.nova-pro-v1:0)&#xa;Receives chunks + generates grounded response:&#xa;'Aapke bachche ko 3 din se bukhar hai.&#xa;Paracetamol 10-15mg/kg de sakte hain.&#xa;ORS pilate rahein. Agar convulsions aaye,&#xa;saans lene mein takleef ho, ya paani na piye&#xa;toh turant PHC jayein.'&#xa;+ AI disclaimer appended&#xa;+ Follow-up: 'Kya bachche ko ulti bhi ho rahi hai?'" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="960" y="1100" width="400" height="130" as="geometry" />
+    </mxCell>
+    <mxCell id="p3c_state_update" value="ConversationState Updated:&#xa;{ turn: 3, triagePath: 'general',&#xa;  conditionId: 'general_fever',&#xa;  patientProfile: { category: 'pediatric' } }" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="1400" y="1100" width="280" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="p3c_polly" value="Polly Aditi speaks response&#xa;Caller hears guidance + follow-up question" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="960" y="1270" width="280" height="50" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e_p3c_caller_nl" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p3c_caller" target="p3c_nova_lite" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_p3c_nl_bedrock" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p3c_nova_lite" target="p3c_bedrock_retrieve" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_p3c_bedrock_chunks" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p3c_bedrock_retrieve" target="p3c_chunks" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_p3c_chunks_np" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p3c_chunks" target="p3c_nova_pro" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_p3c_np_state" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p3c_nova_pro" target="p3c_state_update" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_p3c_np_polly" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p3c_nova_pro" target="p3c_polly" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+    <!-- ==================== PHASE 4 HEADER ==================== -->
+    <mxCell id="p4_header" value="PHASE 4 — Post-Triage Agentic Actions (AWS Step Functions — ALL PARALLEL)" style="text;html=1;strokeColor=none;fillColor=#dae8fc;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="40" y="1600" width="1200" height="40" as="geometry" />
+    </mxCell>
+
+    <mxCell id="p4_triage_done" value="Triage Complete&#xa;(any path — 3A, 3B, or 3C)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="540" y="1670" width="200" height="60" as="geometry" />
+    </mxCell>
+    <mxCell id="p4_sf" value="AWS Step Functions&#xa;Parallel State Machine&#xa;Fires ALL branches simultaneously" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="540" y="1770" width="200" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- 5 parallel branches -->
+    <mxCell id="p4_b1" value="Branch 1&#xa;Amazon SNS&#xa;SMS to Caller:&#xa;'Fever guidance:&#xa;paracetamol 10-15mg/kg,&#xa;ORS, visit PHC if...'" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="40" y="1890" width="180" height="110" as="geometry" />
+    </mxCell>
+    <mxCell id="p4_b2" value="Branch 2&#xa;Call Logger → DynamoDB&#xa;CallRecord {&#xa;  icd10: 'A09',&#xa;  severity: 'urgent',&#xa;  ttl: now+90days,&#xa;  fhirRecord: {...}&#xa;}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="240" y="1890" width="180" height="110" as="geometry" />
+    </mxCell>
+    <mxCell id="p4_b3" value="Branch 3&#xa;Follow-Up Scheduler&#xa;Amazon EventBridge&#xa;Schedule callback&#xa;in 2 hours to check&#xa;on child's condition" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="440" y="1890" width="180" height="110" as="geometry" />
+    </mxCell>
+    <mxCell id="p4_b4" value="Branch 4&#xa;Disease Surveillance&#xa;Aggregate:&#xa;general_fever + pediatric&#xa;+ district=Bhopal&#xa;Spike? → Alert DHO&#xa;via QuickSight" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="640" y="1890" width="180" height="110" as="geometry" />
+    </mxCell>
+    <mxCell id="p4_b5" value="Branch 5&#xa;Referral Agent&#xa;Find nearest PHC&#xa;to caller's location&#xa;Include address +&#xa;phone in SMS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="840" y="1890" width="180" height="110" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e_done_sf" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p4_triage_done" target="p4_sf" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_sf_b1" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p4_sf" target="p4_b1" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_sf_b2" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p4_sf" target="p4_b2" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_sf_b3" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p4_sf" target="p4_b3" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_sf_b4" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p4_sf" target="p4_b4" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e_sf_b5" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p4_sf" target="p4_b5" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+    <!-- Emergency dispatch note for 3A path -->
+    <mxCell id="p4_emerg_dispatch" value="Emergency Path (3A) also triggers:&#xa;Layer 1 Hospital Dashboard blast (30km, 60s timeout)&#xa;→ Layer 2: Expand 60km + Bridge 108 dispatcher&#xa;→ Layer 3: SMS + ASHA Worker alert" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="1040" y="1890" width="320" height="80" as="geometry" />
+    </mxCell>
+
+    <!-- Layer 4 summary -->
+    <mxCell id="p4_layer4" value="Layer 4 — ICD-10 (Silent Throughout)&#xa;• Hardcoded in emergency scripts (Layer 1)&#xa;• Tagged by Nova Pro after general triage&#xa;• Written to CallRecord → QuickSight analytics&#xa;• Never LLM-generated — deterministic lookup only" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="40" y="2040" width="400" height="80" as="geometry" />
+    </mxCell>
+
+    <!-- Legend -->
+    <mxCell id="legend_header" value="LEGEND" style="text;html=1;strokeColor=#666;fillColor=#f5f5f5;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="1400" y="1670" width="200" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="leg1" value="Source Documents / Caller Input" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="1400" y="1710" width="240" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="leg2" value="AWS Processing / Lambda / LLM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="1400" y="1750" width="240" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="leg3" value="AWS Storage (DynamoDB / S3 / OpenSearch)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="1400" y="1790" width="240" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="leg4" value="ICD-10 / Coding Layer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="1400" y="1830" width="240" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="leg5" value="Decision / Routing Point" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="1400" y="1870" width="240" height="40" as="geometry" />
+    </mxCell>
+
+  </root>
+</mxGraphModel>
