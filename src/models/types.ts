@@ -41,6 +41,7 @@ export interface ConversationState {
   conditionId: string | null;
   patientProfile: PatientProfile | null;
   masterExtraction: MasterExtractionResult | null;
+  transcriptHistory: string[];        // all caller utterances — appended each turn, passed to Nova Pro for multi-turn context
   dangerSignsDetected: string[];
   locationCollected: boolean;
   callStartTime: string;
@@ -144,6 +145,7 @@ export interface DrugInfo {
   contraindications: string[];
   pregnancy_category: string;
   renal_adjustment?: string;
+  overdose_threshold?: string;    // dedicated field for overdose threshold message — never overwrites dose_adult
   source: string;
   not_found?: boolean;
 }
@@ -236,6 +238,12 @@ export interface IntentResult {
   confidence: number;
   triggerType: "keyword" | "dtmf" | "emotion" | "sos" | "danger_sign" | "default";
   matchedKeywords?: string[];
+  needsSafetyCheck?: boolean;         // true when is_emergency=true but confidence < CONFIDENCE_THRESHOLD — signals call handler to invoke Nova Pro safety check before committing to emergency path
+  conditionId?: string;               // from keyword match or MasterExtraction — used by call handler for DynamoDB script fetch and analytics logging (Req 2.11)
+  pendingDrugQuery?: {                // set when emergency wins but caller also asked a drug question — call handler should address after emergency stabilization
+    drugName: string;
+    queryType: string;
+  };
 }
 
 export interface KeywordMatch {

@@ -48,10 +48,10 @@ export class DrugKBService implements IDrugKB {
     };
 
     if (isPregnant) {
-      // Pregnancy mode: show pregnancy note prominently, omit adult male dosage context
+      // Pregnancy mode: show pregnancy note prominently, omit adult male dosage context (Req 14.2)
+      // Do NOT include max_daily_adult or renal_adjustment — these are adult-specific values
+      // that could mislead Nova Pro into giving non-pregnancy-safe guidance.
       result.dose_adult = entry.pregnancy_note;
-      result.max_daily_adult = entry.max_daily_adult;
-      result.renal_adjustment = entry.renal_adjustment;
     } else if (isPediatric) {
       result.dose_child = entry.dose_child;
       result.max_daily_child = entry.max_daily_child;
@@ -70,7 +70,7 @@ export class DrugKBService implements IDrugKB {
       const threshold = isPediatric
         ? entry.overdose_threshold_child
         : entry.overdose_threshold_adult;
-      result.dose_adult = threshold;  // reuse dose_adult field as overdose threshold message
+      result.overdose_threshold = threshold;  // dedicated field — dose_adult preserved for normal dose context
     }
 
     return result;
@@ -82,12 +82,11 @@ export class DrugKBService implements IDrugKB {
    * Per spec Task 4.1: checkOverdose() returns true for query_type "overdose".
    */
   checkOverdose(drugName: string): boolean {
-    // The overdose decision is based on query_type, not drug name.
-    // This method is called with the drug name as a signal — the caller
-    // already knows query_type is "overdose" when invoking this.
-    // Returns true to trigger emergency path.
-    const entry = findDrugEntry(drugName);
-    if (!entry) return false;  // unknown drug — do not auto-escalate, let triage handle
-    return true;  // known drug + overdose query = escalate to emergency
+    // Any overdose mention = emergency, regardless of whether the drug is in our database.
+    // The caller already knows query_type is "overdose" when invoking this.
+    // Unknown drugs are equally dangerous — we can't assume "not in DB = safe".
+    // The Intent Router also checks query_type === 'overdose' independently (Req 14.3),
+    // but this method must be consistent: overdose = true, always.
+    return true;
   }
 }

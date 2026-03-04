@@ -116,7 +116,10 @@ describe('Property 1: Intent routing correctness', () => {
             'saanp ne kaata', 'saans nahi', 'bachcha behosh', 'help',
             'bachao', 'emergency', 'ambulance', 'sos', 'cannot breathe',
             'breathing problem', 'dil ka dora', 'dam ghut', 'naag ne kaata',
-            'child fever', 'baby fits', 'tez bukhar'
+            'child fever', 'baby fits', 'tez bukhar',
+            'chest mein pain', 'dil attack', 'saanp bite', 'saanp ne bite',
+            'snake ne kaata', 'breathing nahi', 'bachche ko fever',
+            'baby ko bukhar', 'bachche ko'
           ].some(kw => s.toLowerCase().includes(kw))
         ),
         async (text) => {
@@ -172,5 +175,24 @@ describe('Property 2: Danger sign mid-call escalation', () => {
     for (const ctx of normalContexts) {
       expect(router.checkDangerSigns(ctx)).toBe(false);
     }
+  });
+
+  test('Danger sign in CURRENT utterance (not yet in history) still triggers escalation', async () => {
+    // Simulates: Turn 3, caller says "ab behosh ho gaya" but call handler hasn't
+    // appended it to transcriptHistory yet. The intent router must still catch it.
+    const ctx = makeContext(['bukhar hai', 'teen din se hai']);  // no danger signs in history
+    const result = await router.classifyIntent({
+      transcribedText: 'ab behosh ho gaya',   // danger sign is HERE
+      language: 'hindi',
+      conversationContext: ctx,
+    });
+    expect(result.intent).toBe('emergency');
+    expect(result.triggerType).toBe('danger_sign');
+  });
+
+  test('checkDangerSigns with currentUtterance param catches danger sign not in history', () => {
+    const ctx = makeContext(['bukhar hai']);
+    expect(router.checkDangerSigns(ctx)).toBe(false);                          // without current utterance
+    expect(router.checkDangerSigns(ctx, 'ab behosh ho gaya')).toBe(true);      // with current utterance
   });
 });

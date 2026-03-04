@@ -52,6 +52,9 @@ describe('Property 19: Drug pregnancy filter correctness', () => {
             const entry = DRUG_DATABASE.find(d => d.drug_name === drugName)!;
             expect(result.dose_adult).toBe(entry.pregnancy_note);
           }
+          // Req 14.2: SHALL NOT return adult male dosage information
+          expect(result.max_daily_adult).toBeUndefined();
+          expect(result.renal_adjustment).toBeUndefined();
         }
       ),
       { numRuns: 100 }
@@ -156,7 +159,7 @@ describe('DrugKBService unit tests', () => {
     test('ORS — no overdose possible', async () => {
       const result = await svc.queryDrug('ors', 'overdose', adultProfile);
       expect(result.not_found).toBeFalsy();
-      expect(result.dose_adult).toContain('cannot cause overdose');
+      expect(result.overdose_threshold).toContain('cannot cause overdose');
     });
 
     test('metformin pediatric dosage', async () => {
@@ -194,8 +197,81 @@ describe('DrugKBService unit tests', () => {
       expect(svc.checkOverdose('glucophage')).toBe(true);
     });
 
-    test('unknown drug returns false (do not auto-escalate)', () => {
-      expect(svc.checkOverdose('unknown_drug_xyz')).toBe(false);
+    test('unknown drug returns true (any overdose = emergency)', () => {
+      expect(svc.checkOverdose('unknown_drug_xyz')).toBe(true);
+    });
+  });
+
+  describe('pregnancy mode — Req 14.2 compliance', () => {
+    test('pregnancy mode omits max_daily_adult (no adult male dosage leak)', async () => {
+      const result = await svc.queryDrug('paracetamol', 'dosage', pregnantProfile);
+      expect(result.dose_adult).toContain('Safe in all trimesters');  // pregnancy_note
+      expect(result.max_daily_adult).toBeUndefined();  // must NOT leak adult max daily
+      expect(result.renal_adjustment).toBeUndefined();  // must NOT leak adult renal adjustment
+    });
+
+    test('pregnancy mode omits adult fields for all drugs', async () => {
+      for (const drug of DRUG_DATABASE) {
+        const result = await svc.queryDrug(drug.drug_name, 'safety', pregnantProfile);
+        expect(result.max_daily_adult).toBeUndefined();
+        expect(result.renal_adjustment).toBeUndefined();
+      }
+    });
+
+    test('non-pregnant adult still gets max_daily_adult and renal_adjustment', async () => {
+      const result = await svc.queryDrug('paracetamol', 'dosage', adultProfile);
+      expect(result.max_daily_adult).toContain('4000 mg');
+      expect(result.renal_adjustment).toBeDefined();
+    });
+  });
+
+  describe('overdose_threshold dedicated field', () => {
+    test('overdose query populates overdose_threshold, preserves dose_adult', async () => {
+      const result = await svc.queryDrug('metformin', 'overdose', adultProfile);
+      expect(result.overdose_threshold).toContain('lactic acidosis');
+      expect(result.dose_adult).toContain('500 mg');  // normal dose preserved
+    });
+
+    test('overdose query for pregnant patient uses adult threshold', async () => {
+      const result = await svc.queryDrug('paracetamol', 'overdose', pregnantProfile);
+      expect(result.overdose_threshold).toContain('liver failure');
+      expect(result.dose_adult).toContain('Safe in all trimesters');  // pregnancy_note, not overwritten
+    });
+  });
+
+  describe('non-standard patient categories', () => {
+    test('geriatric category falls through to adult dosing', async () => {
+      const geriatricProfile: PatientProfile = {
+        category: 'geriatric',
+        exact_age_mentioned: '72 years',
+        pregnancy_flag: 'not_applicable',
+      };
+      const result = await svc.queryDrug('paracetamol', 'dosage', geriatricProfile);
+      expect(result.dose_adult).toContain('500 mg');
+      expect(result.max_daily_adult).toContain('4000 mg');
+      expect(result.renal_adjustment).toBeDefined();
+    });
+
+    test('maternal category with no pregnancy flag gets adult dosing', async () => {
+      const maternalProfile: PatientProfile = {
+        category: 'maternal',
+        exact_age_mentioned: null,
+        pregnancy_flag: 'not_applicable',
+      };
+      const result = await svc.queryDrug('paracetamol', 'dosage', maternalProfile);
+      expect(result.dose_adult).toContain('500 mg');
+      expect(result.max_daily_adult).toContain('4000 mg');
+    });
+
+    test('unknown category falls through to adult dosing', async () => {
+      const unknownProfile: PatientProfile = {
+        category: 'unknown',
+        exact_age_mentioned: null,
+        pregnancy_flag: 'unknown',
+      };
+      const result = await svc.queryDrug('paracetamol', 'dosage', unknownProfile);
+      expect(result.dose_adult).toContain('500 mg');
+      expect(result.max_daily_adult).toContain('4000 mg');
     });
   });
 
@@ -213,14 +289,18 @@ describe('DrugKBService unit tests', () => {
   });
 
   describe('overdose query type', () => {
-    test('paracetamol overdose returns threshold message', async () => {
+    test('paracetamol overdose returns threshold in dedicated field', async () => {
       const result = await svc.queryDrug('paracetamol', 'overdose', adultProfile);
-      expect(result.dose_adult).toContain('liver failure');
+      expect(result.overdose_threshold).toContain('liver failure');
+      // dose_adult should still contain the normal adult dose, not the threshold
+      expect(result.dose_adult).toContain('500 mg');
     });
 
     test('paracetamol overdose pediatric returns child threshold', async () => {
       const result = await svc.queryDrug('paracetamol', 'overdose', pediatricProfile);
-      expect(result.dose_adult).toContain('150 mg/kg');
+      expect(result.overdose_threshold).toContain('150 mg/kg');
+      // dose_adult should be undefined for pediatric (not overwritten with threshold)
+      expect(result.dose_adult).toBeUndefined();
     });
   });
 });

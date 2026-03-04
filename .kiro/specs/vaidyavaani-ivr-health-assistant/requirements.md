@@ -101,6 +101,7 @@ VaidyaVaani (वैद्यवाणी - "Doctor's Voice") is an AI-powered IV
 3. WHEN conducting general triage, THE Triage_Agent SHALL ask follow-up questions to narrow down the symptom assessment using a "diagnosis by exclusion" approach before providing guidance
 4. WHEN triage is complete, THE Triage_Agent SHALL provide a severity classification and recommend an appropriate care level (home care with instructions, visit PHC, visit CHC, or visit District Hospital) based on IPHS facility capability guidelines
 5. WHEN triage is complete, THE Triage_Agent SHALL tag the assessment with the appropriate ICD-10 code and store it in FHIR JSON format for ABDM interoperability
+6. WHEN the Triage_Agent generates a response on any turn after Turn 2, THE Triage_Agent SHALL include the full `transcriptHistory` (all prior caller utterances) in the Nova Pro prompt context, so that symptoms mentioned across multiple turns are considered together. The caller may add symptoms incrementally (e.g., "bukhar hai" on Turn 2, "aur ulti bhi ho rahi hai" on Turn 3) and the Triage_Agent SHALL treat the full conversation as a single clinical picture, not isolated turns.
 
 ### Requirement 5: Dispatch Emergency Response with 3-Layer Fallback
 

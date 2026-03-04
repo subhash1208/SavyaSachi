@@ -186,7 +186,7 @@ const SCRIPTS = [
     },
     immediateActions: [
       { hindi: 'Agar jhatkay aa rahe hain toh 108 turant call karein.', english: 'If convulsions are present, call 108 immediately.' },
-      { hindi: 'Bachche ko paracetamol dijiye — 10 se 15 mg per kg weight.', english: 'Give paracetamol — 10 to 15 mg per kg body weight.' },
+      { hindi: 'Bachche ko paracetamol dijiye — 10 se 15 mg per kg weight. Ek ghante mein ek baar se zyada mat dein.', english: 'Give paracetamol — 10 to 15 mg per kg body weight. Do not give more than once per hour.' },
       { hindi: 'ORS pilate rahein — thodi-thodi der mein chhote chhote ghoonth.', english: 'Keep giving ORS — small sips at frequent intervals.' },
       { hindi: 'Geele kapde se maatha aur badan ponchein — bukhar thoda kam hoga.', english: 'Wipe forehead and body with a damp cloth — this helps reduce fever.' },
       { hindi: 'Agar bachcha kuch bhi nahi pee raha, behosh hai, ya jhatkay aa rahe hain — turant hospital jaayein.', english: 'If child refuses all fluids, is unconscious, or has convulsions — go to hospital immediately.' },
@@ -286,7 +286,7 @@ const STUB_CONDITIONS = [
 const stubAbcde = {
   airway:      { questionHindi: 'Kya rogi hosh mein hai?', questionEnglish: 'Is the patient conscious?', yesAction: { hindi: 'Rogi ko shant rakhen.', english: 'Keep the patient calm.' }, noAction: { hindi: '108 turant call karein.', english: 'Call 108 immediately.' }, escalationTrigger: true },
   breathing:   { questionHindi: 'Kya rogi saans le raha hai?', questionEnglish: 'Is the patient breathing?', yesAction: { hindi: 'Saans aa rahi hai.', english: 'Patient is breathing.' }, noAction: { hindi: 'CPR shuru karein.', english: 'Start CPR.' } },
-  circulation: { questionHindi: 'Koi bleeding toh nahi?', questionEnglish: 'Any visible bleeding?', yesAction: { hindi: 'Bleeding rokne ki koshish karein.', english: 'Try to stop the bleeding.' }, noAction: { hindi: 'Theek hai.', english: 'No bleeding.' } },
+  circulation: { questionHindi: 'Koi bleeding toh nahi?', questionEnglish: 'Any visible bleeding?', yesAction: { hindi: 'Bleeding rok ne ki koshish karein.', english: 'Try to stop the bleeding.' }, noAction: { hindi: 'Theek hai.', english: 'No bleeding.' } },
   disability:  { questionHindi: 'Kya rogi react kar raha hai?', questionEnglish: 'Any response from patient?', yesAction: { hindi: 'Achha sign hai.', english: 'Good sign.' }, noAction: { hindi: '108 ko batayein.', english: 'Inform 108.' } },
   exposure:    { questionHindi: 'Koi obvious injury?', questionEnglish: 'Any obvious injury?', yesAction: { hindi: 'Injury ko cover karein.', english: 'Cover the injury.' }, noAction: { hindi: 'Theek hai.', english: 'No visible injury.' } },
 };
