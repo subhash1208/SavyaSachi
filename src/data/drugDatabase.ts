@@ -1,6 +1,3 @@
-import { DrugInfo } from '../models/types';
-import { DrugQueryType } from '../models/enums';
-
 /**
  * NLEM (National List of Essential Medicines) drug database — hackathon static fallback.
  * Production: DynamoDB table `vaidyavaani-drug-kb` (ingestion team handles data loading).

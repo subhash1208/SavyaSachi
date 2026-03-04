@@ -9,31 +9,47 @@ import { Logger } from '../utils/logger';
 // ─── Emergency Keyword Dictionary ────────────────────────────────────────────
 
 const EMERGENCY_KEYWORDS: Record<string, { conditionId: string; language: Language }[]> = {
-  // Cardiac
+  // Cardiac — Hindi
   'seene mein dard':     [{ conditionId: 'cardiac', language: 'hindi' }],
   'dil ka dora':         [{ conditionId: 'cardiac', language: 'hindi' }],
+  // Cardiac — English
   'heart attack':        [{ conditionId: 'cardiac', language: 'english' }],
   'chest pain':          [{ conditionId: 'cardiac', language: 'english' }],
+  // Cardiac — Hinglish
   'heart attack ho raha':[{ conditionId: 'cardiac', language: 'hindi' }],
+  'chest mein pain':     [{ conditionId: 'cardiac', language: 'hindi' }],
+  'dil attack':          [{ conditionId: 'cardiac', language: 'hindi' }],
 
-  // Snakebite
+  // Snakebite — Hindi
   'saanp ne kaata':      [{ conditionId: 'snakebite', language: 'hindi' }],
   'naag ne kaata':       [{ conditionId: 'snakebite', language: 'hindi' }],
+  // Snakebite — English
   'snake bite':          [{ conditionId: 'snakebite', language: 'english' }],
+  // Snakebite — Hinglish
   'saanp bite':          [{ conditionId: 'snakebite', language: 'hindi' }],
+  'saanp ne bite kiya':  [{ conditionId: 'snakebite', language: 'hindi' }],
+  'snake ne kaata':      [{ conditionId: 'snakebite', language: 'hindi' }],
 
-  // Breathing difficulty
+  // Breathing difficulty — Hindi
   'saans nahi aa rahi':  [{ conditionId: 'breathing_difficulty', language: 'hindi' }],
   'dam ghut raha':       [{ conditionId: 'breathing_difficulty', language: 'hindi' }],
+  // Breathing difficulty — English
   "can't breathe":       [{ conditionId: 'breathing_difficulty', language: 'english' }],
   'cannot breathe':      [{ conditionId: 'breathing_difficulty', language: 'english' }],
   'breathing problem':   [{ conditionId: 'breathing_difficulty', language: 'english' }],
+  // Breathing difficulty — Hinglish
+  'saans nahi le pa raha': [{ conditionId: 'breathing_difficulty', language: 'hindi' }],
+  'breathing nahi ho rahi': [{ conditionId: 'breathing_difficulty', language: 'hindi' }],
 
-  // Child fever
+  // Child fever — Hindi
   'bachche ko tez bukhar': [{ conditionId: 'child_fever', language: 'hindi' }],
   'bachcha behosh':        [{ conditionId: 'child_fever', language: 'hindi' }],
+  // Child fever — English
   'child fever':           [{ conditionId: 'child_fever', language: 'english' }],
   'baby fits':             [{ conditionId: 'child_fever', language: 'english' }],
+  // Child fever — Hinglish
+  'bachche ko fever':      [{ conditionId: 'child_fever', language: 'hindi' }],
+  'baby ko bukhar':        [{ conditionId: 'child_fever', language: 'hindi' }],
 };
 
 // SOS activation words — single word emergency trigger
@@ -88,10 +104,17 @@ export class IntentRouterService implements IIntentRouter {
 
   /**
    * Mid-call danger sign monitoring.
-   * Returns true if any danger sign pattern is found in conversation history.
+   * Returns true if any danger sign pattern is found in conversation history
+   * OR in the current utterance.
    */
-  checkDangerSigns(context: ConversationContext): boolean {
-    const allText = context.transcriptHistory.join(' ').toLowerCase();
+  checkDangerSigns(context: ConversationContext, currentUtterance?: string): boolean {
+    // Include current utterance so danger signs are caught even if the call handler
+    // hasn't appended it to transcriptHistory yet (defensive — no ordering dependency)
+    const parts = [...context.transcriptHistory];
+    if (currentUtterance) {
+      parts.push(currentUtterance);
+    }
+    const allText = parts.join(' ').toLowerCase();
     return DANGER_SIGN_PATTERNS.some(pattern => allText.includes(pattern));
   }
 
@@ -111,6 +134,13 @@ export class IntentRouterService implements IIntentRouter {
     }
 
     // Emotion detection — panic/distress escalates to emergency
+    // NOTE (Prototype): This code path is DEAD in the Twilio+Polly prototype.
+    // Twilio only provides transcribed text, not audio emotion analysis.
+    // Emotion detection requires Nova 2 Sonic (production: Amazon Connect),
+    // which analyzes voice tone in real-time to detect panic/distress/calm.
+    // This code is kept for production readiness — it will activate when
+    // we switch to Connect + Nova Sonic. For the hackathon demo, emergency
+    // detection relies on keyword scan + Nova Lite Master Extraction only.
     if (emotionResult?.emotion === 'panic' || emotionResult?.emotion === 'distress') {
       if (emotionResult.confidence >= CONFIDENCE_THRESHOLD) {
         Logger.info('Emotion escalation to emergency', { emotion: emotionResult.emotion });
@@ -118,8 +148,8 @@ export class IntentRouterService implements IIntentRouter {
       }
     }
 
-    // Mid-call danger sign monitoring
-    if (conversationContext && this.checkDangerSigns(conversationContext)) {
+    // Mid-call danger sign monitoring (includes current utterance — no ordering dependency on call handler)
+    if (conversationContext && this.checkDangerSigns(conversationContext, transcribedText)) {
       Logger.info('Danger signs detected mid-call', { callId: conversationContext.callId });
       return { intent: 'emergency', confidence: 0.9, triggerType: 'danger_sign' };
     }
@@ -134,6 +164,7 @@ export class IntentRouterService implements IIntentRouter {
         confidence: 1.0,
         triggerType: 'keyword',
         matchedKeywords: keywordResult.keyword ? [keywordResult.keyword] : [],
+        conditionId: keywordResult.conditionId ?? undefined,
       };
     }
 
@@ -152,25 +183,44 @@ export class IntentRouterService implements IIntentRouter {
     // Overdose always routes to emergency regardless of is_emergency flag
     const hasOverdose = extraction.drugs_mentioned.some(d => d.query_type === 'overdose');
     if (hasOverdose) {
-      return { intent: 'emergency', confidence: 1.0, triggerType: 'keyword', matchedKeywords: ['overdose'] };
+      return { intent: 'emergency', confidence: 1.0, triggerType: 'keyword', matchedKeywords: ['overdose'], conditionId: extraction.condition_id };
     }
 
-    // Drug safety/dosage query → Drug KB (Req 2.10)
-    const hasDrugQuery = extraction.drugs_mentioned.some(
+    // Detect non-overdose drug queries — may become pendingDrugQuery if emergency wins
+    const nonOverdoseDrug = extraction.drugs_mentioned.find(
       d => d.query_type === 'safety' || d.query_type === 'dosage' || d.query_type === 'availability'
     );
-    if (hasDrugQuery && !extraction.is_emergency) {
-      return { intent: 'drug', confidence: extraction.confidence, triggerType: 'default' };
+
+    // danger_signs_present non-empty → emergency escalation regardless of is_emergency (Req 2.6, design.md routing rules)
+    if (extraction.danger_signs_present.length > 0) {
+      Logger.info('Danger signs in extraction — escalating to emergency', { dangerSigns: extraction.danger_signs_present });
+      const lowConfidence = extraction.confidence < CONFIDENCE_THRESHOLD;
+      return {
+        intent: 'emergency',
+        confidence: Math.max(extraction.confidence, 0.9),
+        triggerType: 'danger_sign',
+        conditionId: extraction.condition_id,
+        ...(lowConfidence && { needsSafetyCheck: true }),
+        pendingDrugQuery: nonOverdoseDrug ? { drugName: nonOverdoseDrug.name, queryType: nonOverdoseDrug.query_type } : undefined,
+      };
+    }
+
+    // Drug safety/dosage query with NO emergency → Drug KB (Req 2.10)
+    if (nonOverdoseDrug && !extraction.is_emergency) {
+      return { intent: 'drug', confidence: extraction.confidence, triggerType: 'default', conditionId: extraction.condition_id };
     }
 
     if (extraction.is_emergency) {
+      // Build pending drug query if caller also asked about a drug
+      const pending = nonOverdoseDrug ? { drugName: nonOverdoseDrug.name, queryType: nonOverdoseDrug.query_type } : undefined;
+
       if (extraction.confidence >= CONFIDENCE_THRESHOLD) {
-        return { intent: 'emergency', confidence: extraction.confidence, triggerType: 'default' };
+        return { intent: 'emergency', confidence: extraction.confidence, triggerType: 'default', conditionId: extraction.condition_id, pendingDrugQuery: pending };
       }
       // Low confidence — still emergency but flagged for Nova Pro safety check
-      return { intent: 'emergency', confidence: extraction.confidence, triggerType: 'default' };
+      return { intent: 'emergency', confidence: extraction.confidence, triggerType: 'default', needsSafetyCheck: true, conditionId: extraction.condition_id, pendingDrugQuery: pending };
     }
 
-    return { intent: 'general_triage', confidence: extraction.confidence, triggerType: 'default' };
+    return { intent: 'general_triage', confidence: extraction.confidence, triggerType: 'default', conditionId: extraction.condition_id };
   }
 }

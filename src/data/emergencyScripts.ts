@@ -301,7 +301,3 @@ export const EMERGENCY_SCRIPTS: EmergencyScript[] = [
   })),
 ];
 
-// Lookup by condition_id + patient_category
-export function getEmergencyScript(conditionId: string, _patientCategory: string): EmergencyScript | null {
-  return EMERGENCY_SCRIPTS.find(s => s.condition === conditionId) ?? null;
-}

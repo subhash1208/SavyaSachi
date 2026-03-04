@@ -152,7 +152,8 @@ This plan implements VaidyaVaani as a serverless TypeScript application on AWS. 
     - Implement severity-to-facility mapping: critical → district_hospital/dispatch, urgent → CHC/district_hospital, non-urgent → home/PHC
     - Implement Bedrock API integration for Nova Pro (`us.amazon.nova-pro-v1:0`) with guardrails configuration
     - Implement input sanitization in `src/utils/inputSanitizer.ts` to prevent prompt injection
-    - _Requirements: 4.1, 4.3, 4.4, 9.2, 9.3_
+    - `assessSymptoms()` accepts optional `transcriptHistory: string[]` parameter — when provided, includes full conversation history in the Nova Pro prompt as `CONVERSATION HISTORY` section so the LLM sees all prior caller utterances across turns (multi-turn memory)
+    - _Requirements: 4.1, 4.3, 4.4, 4.6, 9.2, 9.3_
 
   - [ ]* 9.2 Write property test for severity-to-facility mapping
     - **Property 4: Severity-to-facility mapping consistency**
@@ -253,11 +254,12 @@ This plan implements VaidyaVaani as a serverless TypeScript application on AWS. 
   - [ ] 16.1 Implement main IVR call handler Lambda
     - Create `src/handlers/callHandler.ts` as the main entry point for Twilio webhook via API Gateway (prototype) / Amazon Connect contact flows (production)
     - Implement three Twilio webhook endpoints: `/incoming` (Turn 1 — greeting + first Gather), `/gather` (Turn N — process speech/DTMF, advance conversation), `/status` (call end — finalize record, trigger Step Functions)
-    - On every `/gather` invocation: load `ConversationState` from DynamoDB by `callSid`, process input, save updated state, return next TwiML
+    - On every `/gather` invocation: load `ConversationState` from DynamoDB by `callSid`, append caller utterance to `transcriptHistory`, process input, save updated state, return next TwiML
+    - When calling `triageAgent.assessSymptoms()`, pass `conversationState.transcriptHistory` so Nova Pro sees the full conversation context across turns (multi-turn memory for follow-up style conversations)
     - Wire: call reception → language selection → intent routing → master extraction (cached in ConversationState after Turn 2) → emergency/drug KB/general triage → actions → logging
     - Implement missed call callback handler
     - Implement DTMF handling and voice/DTMF fallback logic
-    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6_
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 4.6_
 
   - [ ] 16.2 Implement Step Functions state machine definition
     - Create `src/stepfunctions/triageWorkflow.json` defining the parallel action orchestration

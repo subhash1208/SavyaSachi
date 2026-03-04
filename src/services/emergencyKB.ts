@@ -28,7 +28,10 @@ export class EmergencyKBService implements IEmergencyKB {
 
       if (result.Item) {
         Logger.info('Emergency script fetched from DynamoDB', { condition, patientCategory });
-        return unmarshall(result.Item) as EmergencyScript;
+        const raw = unmarshall(result.Item) as Record<string, unknown>;
+        // DynamoDB PK is condition_id — map to TypeScript field name 'condition'
+        raw.condition = raw.condition_id;
+        return raw as unknown as EmergencyScript;
       }
 
       // Category not found — fall back to "adult" variant
@@ -43,7 +46,9 @@ export class EmergencyKBService implements IEmergencyKB {
 
         if (fallback.Item) {
           Logger.info('Emergency script fetched from DynamoDB (adult fallback)', { condition, patientCategory });
-          return unmarshall(fallback.Item) as EmergencyScript;
+          const raw = unmarshall(fallback.Item) as Record<string, unknown>;
+          raw.condition = raw.condition_id;
+          return raw as unknown as EmergencyScript;
         }
       }
     } catch (err) {

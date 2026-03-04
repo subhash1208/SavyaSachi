@@ -275,6 +275,7 @@ Call end:
 - State is loaded at the start of every Lambda invocation and saved at the end
 - TTL = 1 hour — auto-cleans abandoned calls, no manual cleanup needed
 - Master Extraction runs once (Turn 2) and is cached in state for all subsequent turns
+- `transcriptHistory` grows with each turn — every caller utterance is appended. Passed to Nova Pro so the LLM maintains full conversation context across turns (multi-turn memory for follow-up style conversations)
 - ABCDE step tracker enables the emergency script to advance one step per turn
 
 ### 2. Speech_Engine (Prototype: Amazon Polly Aditi / Production: Nova 2 Sonic)
@@ -298,7 +299,8 @@ Call end:
 - `classifyIntent(input: ClassificationInput): IntentResult` — Main classification function
 - `checkEmergencyKeywords(text: string, language: Language): KeywordMatch | null` — Stage 1 keyword scan
 - `extractMasterTags(text: string): MasterExtractionResult` — Stage 2 Nova Lite call
-- `checkDangerSigns(conversationContext: ConversationContext): boolean` — Mid-call monitoring
+- `checkDangerSigns(conversationContext: ConversationContext, currentUtterance?: string): boolean` — Mid-call monitoring (scans both history AND current utterance to avoid ordering dependency on call handler)
+- `routeFromExtraction(extraction: MasterExtractionResult): IntentResult` — Route from completed Nova Lite extraction (handles drug queries, overdose → emergency, low-confidence safety check)
 
 **Stage 1 — Emergency Keywords (5ms, no LLM):**
 
@@ -405,8 +407,8 @@ Rules:
 **Responsibility:** Stores and retrieves structured drug information for NLEM medicines. Queried when `drugs_mentioned` is non-empty in the MasterExtractionResult. Zero LLM for drug constraint lookups — metadata filtering is safer and faster than embedding similarity for medical constraints.
 
 **Interfaces:**
-- `queryDrug(drugName: string, queryType: string, patientProfile: PatientProfile): DrugInfo` — DynamoDB GetItem by drug_name + query_type
-- `checkOverdose(drugName: string): boolean` — Returns true if query_type is "overdose" → triggers emergency path
+- `queryDrug(drugName: string, queryType: string, patientProfile: PatientProfile): DrugInfo` — DynamoDB GetItem by drug_name, client-side filtering by queryType and patientProfile
+- `checkOverdose(drugName: string): boolean` — Always returns true (any overdose mention = emergency, regardless of whether drug is known)
 
 **Routing:**
 - `overdose` → Emergency path immediately (before any other routing)
@@ -457,51 +459,85 @@ Not all 13 medical sources are equal. Dumping everything into a single vector DB
 | Layer | Sources | Storage | Why |
 |-------|---------|---------|-----|
 | Layer 1 — Emergency Protocols | WHO ABCDE, NAPSE 2024, NHM NAS 108/102, IMCI red flags, IMAI red flags | DynamoDB deterministic scripts | Must be auditable, versioned, zero hallucination |
-| Layer 2 — Clinical Workflows | ICMR STWs (157), WHO IMAI narrative, WHO IMCI narrative, RMNCH+A, WHO Snakebite Guidelines | Structured JSON + Bedrock KB (narrative only) | Algorithms → JSON trees; narrative → vector embeddings |
+| Layer 2 + 5 — General Triage KB | ICMR STWs (50 priority PDFs), WHO IMAI/IMCI narrative, RMNCH+A, WHO Snakebite | Bedrock KB (OpenSearch Serverless) — single KB, single index. FM-as-parser for PDFs (handles flowcharts → text). Chunk-level metadata tagging via custom transformation Lambda. | Narrative + dosage tables + flowcharts → vector embeddings with per-chunk metadata filters |
 | Layer 3 — Drug Knowledge | WHO Essential Medicines, India NLEM | DynamoDB structured drug table | Metadata filtering > embedding similarity for drug constraints |
 | Layer 4 — Coding & Interoperability | ABDM ICD-10, LOINC, IPHS facility standards | DynamoDB lookup tables | Codes must never be LLM-generated; deterministic mapping only |
-| Layer 5 — Embedding KB (RAG) | Narrative portions of ICMR workflows, WHO education sections, maternal health advice, symptom-disease datasets | Bedrock KB (OpenSearch Serverless) | Explanatory content only — not life-critical decision nodes |
 
 **Layer 3 — Drug DB DynamoDB Schema:**
 ```
 Table: vaidyavaani-drug-db
 Primary Key: drug_name (String, normalized lowercase)
-Sort Key:    query_type (String: "safety" | "dosage" | "overdose" | "availability")
+No Sort Key — single item per drug with all fields
 
 Example item:
 {
   "drug_name": "paracetamol",
-  "query_type": "dosage",
+  "aliases": ["acetaminophen", "crocin", "dolo", "calpol", "bukhar ki dawa"],
   "dose_child": "10-15 mg/kg every 4-6 hours",
   "dose_adult": "500-1000 mg every 4-6 hours",
   "max_daily_adult": "4000 mg",
   "max_daily_child": "60 mg/kg",
   "contraindications": ["hepatic impairment", "G6PD deficiency"],
-  "pregnancy_category": "B — generally safe",
+  "pregnancy_category": "B",
+  "pregnancy_note": "Safe in all trimesters at recommended doses.",
   "renal_adjustment": "reduce dose in severe CKD",
+  "overdose_threshold_adult": "More than 7.5 g (15 tablets of 500 mg) in 24 hours",
+  "overdose_threshold_child": "More than 150 mg/kg in 24 hours",
   "source": "India NLEM 2022"
 }
 ```
+
+**Note:** The implementation uses a single flat item per drug (not 4 rows per query_type). The service does one `GetItem` by `drug_name` and filters client-side based on `queryType` and `patientProfile`. This is simpler and faster than the multi-row approach (one GetItem vs four).
 
 **Routing from `drugs_mentioned` in MasterExtractionResult:**
 - `query_type = "overdose"` → Emergency path immediately (regardless of `is_emergency` flag)
 - `query_type = "safety" | "dosage"` → Drug DB DynamoDB query filtered by `patient_profile.category` and `pregnancy_flag`
 - `query_type = "availability"` → NLEM lookup
 
-**Layer 5 — Bedrock KB Metadata Tags (required on every document at upload):**
+**General Triage KB — Metadata Architecture (Two-Tier):**
+
+The KB uses a two-tier metadata approach. Document-level tags are set by the Metadata Lambda from filename keywords. Chunk-level tags are set by the Chunk Tagger Lambda during KB sync based on full chunk text content. Chunk-level tags overwrite document-level tags on collision (per AWS docs).
+
+*Document-level metadata (set by Metadata Lambda):*
 ```json
 {
-  "patient_category": "pediatric | adult | maternal | general",
-  "condition_type": "emergency | chronic | general",
-  "source": "WHO_IMCI | ICMR_STW | WHO_IMAI | RMNCH_A",
-  "severity": "critical | moderate | mild",
-  "age_group": "0-5 | 6-12 | 13-18 | adult | geriatric",
-  "pregnancy_flag": "applicable | not_applicable"
+  "metadataAttributes": {
+    "source":         "WHO_IMCI | WHO_IMAI | ICMR_STW | RMNCH_A | WHO_SNAKEBITE",
+    "condition_type": "chronic | general_triage | general",
+    "severity":       "critical | moderate | mild"
+  }
 }
 ```
 
-**Hackathon scope (Layer 5 documents):**
-- ICMR STWs (10-50 PDFs, narrative sections only)
+*Chunk-level metadata (set by Chunk Tagger Lambda):*
+```json
+{
+  "patient_category": "pediatric | adult | maternal | geriatric | general",
+  "age_group":        "0-5 | 6-12 | adult | geriatric",
+  "topic":            "dosage | contraindication | side_effects | emergency_signs | referral | lifestyle | monitoring | counselling | symptoms | diagnosis | prevention | general",
+  "condition":        "diabetes | dengue | diarrhea | headache | jaundice | fever | pneumonia | snakebite | cardiac | general",
+  "urgency":          "emergency | urgent | routine",
+  "pregnancy_flag":   "applicable | not_applicable"
+}
+```
+
+`patient_category`, `age_group`, and `pregnancy_flag` are set per-chunk, NOT per-document — these fields vary within multi-category documents (e.g., WHO Vol 1 covers adult + pediatric + maternal). This eliminates the need for document splitting.
+
+**General Triage KB — Configuration:**
+
+| Setting | Value |
+|---|---|
+| Parser | Foundation Model as Parser (handles PDFs including flowcharts → structured text) |
+| Chunking | Semantic (512 tokens max, breakpoint threshold 85) |
+| Embedding | Titan Embeddings v2 (1024 dimensions) |
+| Search | Hybrid (semantic + BM25) — enable in console + `searchType: 'HYBRID'` in app calls |
+| Custom Transformation | `vaidyavaani-kb-chunk-tagger` Lambda (adds 6 per-chunk tags post-chunking) |
+| Vector Store | OpenSearch Serverless |
+
+See `ETL-PIPELINE-DESIGN.md` for the full ingestion pipeline (3 steps, 2 Lambdas).
+
+**Hackathon scope (Layer 2+5 documents):**
+- ICMR STWs (10-50 PDFs — FM-as-parser handles flowcharts)
 - WHO IMAI chunks (5-10 Markdown files)
 - WHO IMCI chunks (3-5 Markdown files)
 - WHO Snakebite + India NAPSE 2024 narrative (2-3 Markdown files)
@@ -516,8 +552,10 @@ Example item:
 
 **Responsibility:** AI reasoning engine for symptom assessment, severity classification, and treatment recommendations. Prototype uses Nova Pro (`us.amazon.nova-pro-v1:0`). Production uses Claude Sonnet 4.6 (blocked on AISPL — see BLOCKERS-AND-DECISIONS.md).
 
+**Conversation Memory:** The Triage Agent receives the full `transcriptHistory` (all prior caller utterances from ConversationState) on every turn after Turn 2. This is passed in the Nova Pro prompt as `CONVERSATION HISTORY` so the LLM sees the complete clinical picture across turns. Without this, a caller who says "bukhar hai" on Turn 2 and "aur ulti bhi ho rahi hai" on Turn 3 would lose the fever context on Turn 3. The transcript history is accumulated in ConversationState (DynamoDB) and loaded at the start of each Lambda invocation.
+
 **Interfaces:**
-- `assessSymptoms(input: SymptomInput, kbResults: KBResults): TriageAssessment` — Main assessment
+- `assessSymptoms(input: SymptomInput, kbResults: KBResults, transcriptHistory?: string[]): TriageAssessment` — Main assessment (transcriptHistory passed for multi-turn context)
 - `generateTreatmentAdvice(assessment: TriageAssessment): TreatmentAdvice` — Treatment guidance
 - `tagICD10(assessment: TriageAssessment): ICD10Code` — Diagnosis coding
 - `determineFacilityLevel(severity: SeverityLevel): FacilityLevel` — PHC/CHC/District Hospital
@@ -674,13 +712,14 @@ All services depend on interfaces, not concrete implementations. This enables un
 export interface IIntentRouter {
   classifyIntent(input: ClassificationInput): Promise<IntentResult>;
   checkEmergencyKeywords(text: string, language: Language): boolean;
-  checkDangerSigns(context: ConversationContext): boolean;
+  checkDangerSigns(context: ConversationContext, currentUtterance?: string): boolean;
+  routeFromExtraction(extraction: MasterExtractionResult): IntentResult;
 }
 
 // src/interfaces/IEmergencyKB.ts
 export interface IEmergencyKB {
-  retrieveEmergencyScript(condition: EmergencyCondition): Promise<EmergencyScript>;
-  getABCDEAssessment(condition: EmergencyCondition): Promise<ABCDEScript>;
+  retrieveEmergencyScript(condition: EmergencyCondition, patientCategory: string): Promise<EmergencyScript>;
+  getABCDEAssessment(condition: EmergencyCondition, patientCategory: string): Promise<ABCDEScript>;
 }
 
 // src/interfaces/IGeneralTriageKB.ts
@@ -692,7 +731,7 @@ export interface IGeneralTriageKB {
 
 // src/interfaces/ITriageAgent.ts
 export interface ITriageAgent {
-  assessSymptoms(input: SymptomInput, kbResults: KBResults): Promise<TriageAssessment>;
+  assessSymptoms(input: SymptomInput, kbResults: KBResults, transcriptHistory?: string[]): Promise<TriageAssessment>;
   generateTreatmentAdvice(assessment: TriageAssessment): Promise<TreatmentAdvice>;
   tagICD10(assessment: TriageAssessment): ICD10Code;
   determineFacilityLevel(severity: SeverityLevel): FacilityLevel;
@@ -784,7 +823,7 @@ export interface IHospitalDashboard {
 // src/interfaces/IDrugKB.ts
 export interface IDrugKB {
   queryDrug(drugName: string, queryType: DrugQueryType, patientProfile: PatientProfile): Promise<DrugInfo>;
-  checkOverdose(drugName: string): boolean;  // true → route to Emergency_KB immediately
+  checkOverdose(drugName: string): boolean;  // always true — any overdose mention = emergency
 }
 
 // src/interfaces/IConversationStateRepository.ts
@@ -917,12 +956,13 @@ interface DrugInfo {
   drug_name: string;                 // "paracetamol" (normalized lowercase)
   query_type: "safety" | "dosage" | "overdose" | "availability";
   dose_child?: string;               // "10-15 mg/kg every 4-6 hours"
-  dose_adult?: string;               // "500-1000 mg every 4-6 hours"
-  max_daily_adult?: string;          // "4000 mg"
+  dose_adult?: string;               // "500-1000 mg every 4-6 hours" (pregnancy mode: contains pregnancy_note instead)
+  max_daily_adult?: string;          // "4000 mg" — omitted in pregnancy mode (Req 14.2)
   max_daily_child?: string;          // "60 mg/kg"
   contraindications: string[];       // ["hepatic impairment", "G6PD deficiency"]
   pregnancy_category: string;        // "B — generally safe"
-  renal_adjustment?: string;         // "reduce dose in severe CKD"
+  renal_adjustment?: string;         // "reduce dose in severe CKD" — omitted in pregnancy mode (Req 14.2)
+  overdose_threshold?: string;       // "More than 7.5 g in 24 hours — risk of liver failure" — set only when query_type is "overdose"
   source: string;                    // "India NLEM 2022"
   not_found?: boolean;               // true when drug is not in DB — triggers safe fallback response
 }
@@ -1028,7 +1068,9 @@ interface ConversationState {
 **State lifecycle:**
 - Created on Turn 1 (incoming call) with `triagePath: "unknown"`, `turn: 1`
 - Master Extraction runs on Turn 2 and result is cached — never re-run
+- `transcriptHistory` accumulates every caller utterance — passed to Nova Pro on each turn so the LLM sees the full conversation context (multi-turn memory)
 - ABCDE step advances one step per turn on the emergency path
+- `dangerSignsDetected` accumulates mid-call danger signs across turns
 - TTL = 1 hour from call start — auto-cleans abandoned calls, no manual cleanup
 - Deleted (or TTL expires) after call end webhook is received
 
@@ -1132,10 +1174,16 @@ interface ClassificationInput {
 }
 
 interface IntentResult {
-  intent: "emergency" | "general_triage";
+  intent: "emergency" | "general_triage" | "drug";
   confidence: number;
   triggerType: "keyword" | "dtmf" | "emotion" | "sos" | "danger_sign" | "default";
   matchedKeywords?: string[];
+  needsSafetyCheck?: boolean;         // true when is_emergency=true but confidence < CONFIDENCE_THRESHOLD — call handler invokes Nova Pro safety check before committing to emergency path
+  conditionId?: string;               // from keyword match or MasterExtraction — used by call handler for DynamoDB script fetch and analytics logging (Req 2.11)
+  pendingDrugQuery?: {                // set when emergency wins but caller also asked a drug question — call handler addresses after emergency stabilization
+    drugName: string;
+    queryType: string;
+  };
 }
 ```
 
