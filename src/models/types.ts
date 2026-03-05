@@ -1,7 +1,8 @@
 import {
   Language, Voice, EmergencyCondition, ChronicCondition, FacilityLevel,
   ActionType, DrugQueryType, SeverityLevel, TriageOutcome, DTMFAction,
-  ICD10Code, Duration, ScheduleId, S3Key, AudioStream, ImageData
+  ICD10Code, Duration, ScheduleId, S3Key, AudioStream, ImageData,
+  FollowUpPurpose
 } from './enums';
 
 export interface PatientProfile {
@@ -175,6 +176,7 @@ export interface TriageAssessment {
   recommendedCareLevel: "home" | "PHC" | "CHC" | "district_hospital";
   summaryHindi: string;
   summaryEnglish: string;
+  treatmentInstructions?: BilingualInstruction[];  // condition-specific clinical self-care from Nova Pro
   followUpRequired: boolean;
   followUpInterval?: string;
 }
@@ -339,6 +341,7 @@ export interface CallRecord {
   language: Language;
   duration: number;
   triageOutcome: TriageOutcome;
+  conditionId: string;                // e.g., "cardiac", "maternal_care" — for QuickSight analytics (Req 2.11)
   icd10Code: string;
   severityClassification: SeverityLevel;
   dispatchType: "108" | "102" | "none";
@@ -380,6 +383,7 @@ export interface STDCodeEntry {
   city: string;
   state: string;
   district: string;
+  type?: 'landline' | 'mobile';  // present in DynamoDB seed data, optional in static fallback
 }
 
 // ─── Outbreak / Surveillance ─────────────────────────────────────────────────
@@ -445,6 +449,19 @@ export interface ActionResults {
   surveillanceLogged: boolean;
 }
 
+// ─── Follow-Up Scheduler ─────────────────────────────────────────────────────
+
+export interface FollowUpScheduleRecord {
+  scheduleId: string;
+  callId: string;
+  interval: Duration;
+  purpose: FollowUpPurpose;
+  ruleName: string;
+  scheduledAt: string;   // ISO timestamp of when the follow-up should fire
+  createdAt: string;
+  status: 'active' | 'triggered' | 'cancelled';
+}
+
 // ─── Multimodal Vision ───────────────────────────────────────────────────────
 
 export interface TriageContext {
@@ -479,5 +496,5 @@ export {
   Language, Voice, EmergencyCondition, ChronicCondition, FacilityLevel,
   ActionType, DrugQueryType, SeverityLevel, TriageOutcome, DTMFAction,
   ICD10Code, Duration, ScheduleId, S3Key, AudioStream, ImageData,
-  CONFIDENCE_THRESHOLD
+  FollowUpPurpose, CONFIDENCE_THRESHOLD
 } from './enums';

@@ -555,10 +555,10 @@ See `ETL-PIPELINE-DESIGN.md` for the full ingestion pipeline (3 steps, 2 Lambdas
 **Conversation Memory:** The Triage Agent receives the full `transcriptHistory` (all prior caller utterances from ConversationState) on every turn after Turn 2. This is passed in the Nova Pro prompt as `CONVERSATION HISTORY` so the LLM sees the complete clinical picture across turns. Without this, a caller who says "bukhar hai" on Turn 2 and "aur ulti bhi ho rahi hai" on Turn 3 would lose the fever context on Turn 3. The transcript history is accumulated in ConversationState (DynamoDB) and loaded at the start of each Lambda invocation.
 
 **Interfaces:**
-- `assessSymptoms(input: SymptomInput, kbResults: KBResults, transcriptHistory?: string[]): TriageAssessment` — Main assessment (transcriptHistory passed for multi-turn context)
-- `generateTreatmentAdvice(assessment: TriageAssessment): TreatmentAdvice` — Treatment guidance
-- `tagICD10(assessment: TriageAssessment): ICD10Code` — Diagnosis coding
-- `determineFacilityLevel(severity: SeverityLevel): FacilityLevel` — PHC/CHC/District Hospital
+- `assessSymptoms(input: SymptomInput, kbResults: KBResults, transcriptHistory?: string[]): Promise<TriageAssessment>` — Main assessment (transcriptHistory passed for multi-turn context)
+- `generateTreatmentAdvice(assessment: TriageAssessment): Promise<TreatmentAdvice>` — Hybrid treatment guidance: merges Nova Pro's condition-specific clinical instructions (from `treatmentInstructions` on the assessment) with static logistics instructions (where to go, what to carry). If Nova Pro didn't return treatment instructions (fallback path), only static logistics are used.
+- `tagICD10(conditionId: string): ICD10Code` — Static ICD-10 lookup by condition ID; fallback R69
+- `determineFacilityLevel(severity: SeverityLevel): TriageAssessment['recommendedCareLevel']` — Maps severity to care level (critical→district_hospital, urgent→CHC, non-urgent→PHC)
 
 ### 8. Emergency_Dispatch_Agent (AWS Lambda + Step Functions)
 
@@ -568,18 +568,21 @@ See `ETL-PIPELINE-DESIGN.md` for the full ingestion pipeline (3 steps, 2 Lambdas
 - `executeLayer1(emergency: EmergencyData, location: LocationData): DispatchResult` — Hospital dashboard blast
 - `executeLayer2(emergency: EmergencyData, location: LocationData): DispatchResult` — Expand + 108 bridge
 - `executeLayer3(emergency: EmergencyData, location: LocationData): DispatchResult` — SMS + ASHA fallback
+- `executeFullDispatch(emergency: EmergencyData, location: LocationData): DispatchResult` — Full 3-layer chain: Layer 1 → if fail → Layer 2 → if fail → Layer 3. Guarantees the caller is never left without assistance.
 - `bridgeTo108(callId: string, assessmentSummary: string): void` — Connect caller to 108
+- `buildAcceptanceMessage(hospitalName: string, estimatedArrival: string): BilingualInstruction` — Bilingual caller notification when a hospital accepts (Req 5.2)
 
 ### 9. Location_Detector (AWS Lambda)
 
 **Responsibility:** 3-tier location detection for feature phones.
 
 **Interfaces:**
-- `extractSTDCode(phoneNumber: string): Tier2Location` — Auto-extract district/city from phone prefix
-- `parseVoiceLocation(transcribedText: string): Tier1Location` — Parse village/landmark from speech
-- `sendGPSLink(phoneNumber: string, callId: string): void` — Send SMS with GPS sharing link
+- `extractSTDCode(phoneNumber: string): Promise<Tier2Location | null>` — Auto-extract district/city from phone prefix (async — DynamoDB lookup with static fallback)
+- `parseNovaLocation(locationMentioned: string | null): Tier1Location | null` — Parse location from Nova Lite's `location_mentioned` field (PRIMARY Tier 1 source)
+- `parseVoiceLocation(transcribedText: string): Tier1Location | null` — Parse village/landmark from speech via regex (FALLBACK Tier 1 source)
+- `sendGPSLink(phoneNumber: string, callId?: string): void` — Send SMS with GPS sharing link
 - `receiveGPSCoordinates(callId: string, lat: number, lng: number): Tier3Location` — Receive GPS data
-- `resolveLocation(callId: string): ResolvedLocation` — Combine all tiers into best available location
+- `resolveLocation(tier2: Tier2Location, tier1?: Tier1Location): ResolvedLocation` — Combine tiers into best available location
 
 **Phone Lookup Databases (DynamoDB):**
 - `vaidyavaani-std-codes` — partition key: `stdCode` (String, 2–5 digits with leading 0). Maps landline STD codes to city/district/state. ~600 entries covering all state capitals, district HQs, and major towns.
@@ -595,8 +598,17 @@ See `ETL-PIPELINE-DESIGN.md` for the full ingestion pipeline (3 steps, 2 Lambdas
 **Responsibility:** Parallel execution of all post-triage agentic actions.
 
 **Interfaces:**
-- `orchestrateActions(triageResult: TriageResult, location: LocationData): ActionResults` — Main orchestration
+- `orchestrateActions(triageResult: TriageResult, location: LocationData, callerNumber: string): ActionResults` — Main orchestration
 - Internally triggers: SMS, dispatch, ASHA alerts, follow-up scheduling, referral, surveillance logging — all in parallel
+
+**Execution Flow (2-phase):**
+- Phase 1: Referral lookup runs FIRST (DynamoDB GetItem ~5ms) so the facility info is available for SMS content. Without this sequencing, SMS and referral race and the SMS never includes the "Nearest Facility" section.
+- Phase 2: All remaining actions fire in parallel via `Promise.allSettled` — SMS (with facility attached), emergency hospital SMS (emergency callers only), follow-up scheduling, ASHA alert, surveillance logging.
+- Emergency callers receive TWO SMSes: triage summary + hospital contact list.
+- Landline callers: SMS is skipped gracefully (detected by phone number pattern). `ActionResults.smsSent` is `false` for landline callers to keep analytics accurate.
+- ASHA alert for emergency cases includes up to 3 treatment instructions (critical first-aid steps); non-emergency cases include only the first instruction.
+
+**Surveillance Wiring:** The orchestrator accepts an optional `ISurveillanceLogger` (5th constructor parameter). When provided, `_logSurveillance` writes a lightweight record `{ callId, icd10Code, district, state, village?, timestamp }` to DynamoDB for batch spike detection. Village data comes from Tier 1 voice location (`location.tier1Voice?.village`) when available. When no logger is provided (backward compatible), surveillance logging is a no-op that always succeeds. The `DiseaseSurveillanceService` reads these records later on an EventBridge cron schedule.
 
 ### 11. Hospital_Dashboard (AWS Amplify + API Gateway + Lambda)
 
@@ -616,15 +628,21 @@ See `ETL-PIPELINE-DESIGN.md` for the full ingestion pipeline (3 steps, 2 Lambdas
 - `triggerFollowUp(scheduleId: string): void` — Execute scheduled callback
 - `cancelFollowUp(scheduleId: string): void` — Cancel if no longer needed
 
+**DynamoDB Record:** `FollowUpScheduleRecord` — persisted per schedule with fields: `scheduleId`, `callId`, `interval`, `purpose`, `ruleName`, `scheduledAt`, `createdAt`, `status` (`active` | `triggered` | `cancelled`). Status transitions: `active` → `triggered` (on fire) or `active` → `cancelled` (on cancel). Terminal states (`triggered`, `cancelled`) cannot be overwritten.
+
+**EventBridge Rule Naming:** Rule names are truncated to 64 characters (EventBridge limit). Format: `vv-fu-followup-{callId}-{timestamp}-{counter}`. The monotonic counter prevents same-millisecond collisions in warm Lambda containers.
+
+**EventBridge Target ID:** Target IDs also have a 64-character limit. Format: `tgt-{scheduleId}`, truncated to 64 chars. The same truncation logic is used in both `putTargets` (schedule creation) and `removeTargets` (cleanup) to ensure the IDs match — a mismatch would leave orphaned targets that fire indefinitely.
+
 ### 13. Call_Logger (DynamoDB + S3)
 
-**Responsibility:** Persists all call data, recordings, and triage outcomes with PII redaction.
+**Responsibility:** Persists all call data, recordings, and triage outcomes with PII redaction. Implemented as `CallLoggerService` class implementing `ICallLogger` with DynamoDB client injection for testability.
 
 **Interfaces:**
-- `logCall(callRecord: CallRecord): void` — Store call data in DynamoDB
-- `storeRecording(callId: string, audioStream: AudioStream): S3Key` — Store in S3 with KMS encryption
+- `logCall(callRecord: CallRecord): Promise<void>` — Redact PII and store call data in DynamoDB. Sets TTL = 90 days. Swallows DynamoDB errors (logging failure must not crash the call or trigger 108 fallback).
+- `storeRecording(callId: string, audioStream: AudioStream): Promise<S3Key>` — Store in S3 with KMS encryption (hackathon: stub returns deterministic key)
 - `redactPII(record: CallRecord): RedactedCallRecord` — Remove PII before storage
-- `generateFHIRRecord(triageResult: TriageResult): FHIRCondition` — Create FHIR JSON
+- `generateFHIRRecord(triageResult: TriageResult): FHIRCondition` — Create FHIR JSON from triage result (delegates to pure `fhirGenerator.ts`)
 
 **Data Retention Policy (DPDP Act 2023 compliance):**
 - DynamoDB call records: TTL = 90 days from call timestamp. Set via `ttl` attribute (Unix epoch) on every item at write time.
@@ -635,6 +653,27 @@ See `ETL-PIPELINE-DESIGN.md` for the full ingestion pipeline (3 steps, 2 Lambdas
 ### 14. Disease_Surveillance_Agent (Lambda + QuickSight)
 
 **Responsibility:** Detects outbreak patterns from aggregated call data.
+
+**Architecture:** Batch/scheduled service triggered by EventBridge cron (e.g., every 6 hours). Reads lightweight surveillance records written by the Action Orchestrator's `ISurveillanceLogger`. NOT triggered per-call.
+
+**Pipeline:** Call logging (per-call, via Action Orchestrator) → Aggregation (batch) → Spike detection (pure function) → DHO alert (SNS + QuickSight)
+
+**Spike Detection Algorithm:**
+- Groups call records by ICD-10 code + district + state within a configurable time window
+- Tracks village-level breakdown within each district group for hotspot identification (Req 8.5: "Khedi village")
+- Compares each group's count against condition-specific thresholds (CONDITION_THRESHOLDS lookup: A90 Dengue=5, A01.0 Typhoid=3, B54 Malaria=5, A09 Diarrhea=8, J06.9 URI=15; default=10 for unknown codes)
+- Severity tiers: `watch` (1-2x threshold), `alert` (2-3x), `critical` (>3x)
+- Count exactly at threshold is NOT flagged (must exceed)
+- Alert IDs use monotonic counter to avoid same-millisecond collisions
+
+**Batch Pipeline Orchestration:**
+- `runSurveillancePipeline(timeWindow, defaultThreshold, recentlyAlerted)` chains aggregate → detect → alert
+- Deduplication: accepts a `Set<string>` of recently-alerted `icd10Code|district` keys to suppress duplicate alerts across consecutive cron runs
+- The EventBridge Lambda handler maintains this set in DynamoDB (TTL = time window)
+
+**Dependencies (injected via DI):**
+- `ISurveillanceRepository` — queries DynamoDB call records by time range (includes optional village field)
+- `IDHONotifier` — publishes OutbreakAlert to SNS topic for DHO notification
 
 **Interfaces:**
 - `aggregateByConditionAndLocation(timeWindow: Duration): AggregatedData` — Group calls
@@ -666,6 +705,8 @@ See `ETL-PIPELINE-DESIGN.md` for the full ingestion pipeline (3 steps, 2 Lambdas
 **Interfaces:**
 - `findNearestFacility(location: LocationData, requiredLevel: FacilityLevel): Facility` — Facility lookup
 - `getFacilityCapabilities(facilityId: string): FacilityCapabilities` — What the facility can handle
+
+**District Extraction Priority:** Phone-prefix district (Tier 2, automatic, always accurate) is preferred over voice-extracted district (Tier 1, can be misheard). Voice district is used only as fallback when phone district is empty. This prevents facility lookup failures from ASR errors (e.g., "Sehore" misheard as "Sehor" → no DynamoDB match).
 
 ## Enterprise Architecture Patterns
 
@@ -733,8 +774,8 @@ export interface IGeneralTriageKB {
 export interface ITriageAgent {
   assessSymptoms(input: SymptomInput, kbResults: KBResults, transcriptHistory?: string[]): Promise<TriageAssessment>;
   generateTreatmentAdvice(assessment: TriageAssessment): Promise<TreatmentAdvice>;
-  tagICD10(assessment: TriageAssessment): ICD10Code;
-  determineFacilityLevel(severity: SeverityLevel): FacilityLevel;
+  tagICD10(conditionId: string): ICD10Code;
+  determineFacilityLevel(severity: SeverityLevel): TriageAssessment['recommendedCareLevel'];
 }
 
 // src/interfaces/IEmergencyDispatch.ts
@@ -747,8 +788,9 @@ export interface IEmergencyDispatch {
 
 // src/interfaces/ILocationDetector.ts
 export interface ILocationDetector {
-  extractSTDCode(phoneNumber: string): Tier2Location | null;       // landline: STD code lookup; mobile: prefix4 lookup
-  parseVoiceLocation(transcribedText: string): Tier1Location | null;
+  extractSTDCode(phoneNumber: string): Promise<Tier2Location | null>;       // landline: STD code lookup; mobile: prefix4 lookup (async — DynamoDB with static fallback)
+  parseNovaLocation(locationMentioned: string | null): Tier1Location | null; // PRIMARY Tier 1: Nova Lite extraction.location_mentioned
+  parseVoiceLocation(transcribedText: string): Tier1Location | null;         // FALLBACK Tier 1: regex parsing of raw utterance
   sendGPSLink(phoneNumber: string, callId?: string): Promise<void>;
   receiveGPSCoordinates(callId: string, lat: number, lng: number): Promise<{ latitude: number; longitude: number }>;
   resolveLocation(tier2: Tier2Location, tier1?: Tier1Location): ResolvedLocation;
@@ -757,14 +799,14 @@ export interface ILocationDetector {
 // src/interfaces/ICallLogger.ts
 export interface ICallLogger {
   logCall(callRecord: CallRecord): Promise<void>;
-  storeRecording(callId: string, audioStream: AudioStream): Promise<string>;
+  storeRecording(callId: string, audioStream: AudioStream): Promise<S3Key>;
   redactPII(record: CallRecord): RedactedCallRecord;
   generateFHIRRecord(triageResult: TriageResult): FHIRCondition;
 }
 
 // src/interfaces/IActionOrchestrator.ts
 export interface IActionOrchestrator {
-  orchestrateActions(triageResult: TriageResult, location: LocationData): Promise<ActionResults>;
+  orchestrateActions(triageResult: TriageResult, location: LocationData, callerNumber: string): Promise<ActionResults>;
 }
 
 // src/interfaces/ISmsService.ts
@@ -781,9 +823,9 @@ export interface IReferralAgent {
 
 // src/interfaces/IFollowUpScheduler.ts
 export interface IFollowUpScheduler {
-  scheduleFollowUp(callId: string, interval: Duration, purpose: FollowUpPurpose): Promise<string>;
-  triggerFollowUp(scheduleId: string): Promise<void>;
-  cancelFollowUp(scheduleId: string): Promise<void>;
+  scheduleFollowUp(callId: string, interval: Duration, purpose: FollowUpPurpose): Promise<ScheduleId>;
+  triggerFollowUp(scheduleId: ScheduleId): Promise<void>;
+  cancelFollowUp(scheduleId: ScheduleId): Promise<void>;
 }
 
 // src/interfaces/IASHAWorkerAgent.ts
@@ -1034,6 +1076,7 @@ interface CallRecord {
   language: Language;
   duration: number;                  // Duration in seconds
   triageOutcome: TriageOutcome;
+  conditionId: string;               // e.g., "cardiac", "maternal_care" — for QuickSight analytics (Req 2.11)
   icd10Code: string;                 // e.g., "I21.9"
   severityClassification: "critical" | "urgent" | "non-urgent";
   dispatchType: "108" | "102" | "none";
@@ -1480,6 +1523,9 @@ interface SymptomInput {
   conditionId: string;
   duration: string | null;
   dangerSignsPresent: string[];
+  language: Language;                                // "hindi" | "english" — from ConversationState
+  rawUtterance: string;                              // Original caller speech — fallback for register detection
+  language_register?: "pure_hindi" | "hinglish" | "english"; // From Nova Lite extraction; overrides detectRegister()
 }
 
 interface KBResults {
@@ -1495,6 +1541,7 @@ interface TriageAssessment {
   recommendedCareLevel: "home" | "PHC" | "CHC" | "district_hospital";
   summaryHindi: string;
   summaryEnglish: string;
+  treatmentInstructions?: BilingualInstruction[];  // condition-specific clinical self-care from Nova Pro
   followUpRequired: boolean;
   followUpInterval?: string;                         // "2h", "24h", "1w"
 }
