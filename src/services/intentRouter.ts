@@ -5,6 +5,7 @@ import {
 import { Language, CONFIDENCE_THRESHOLD } from '../models/enums';
 import { IIntentRouter } from '../interfaces/IIntentRouter';
 import { Logger } from '../utils/logger';
+import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 
 // ─── Emergency Keyword Dictionary ────────────────────────────────────────────
 
@@ -65,6 +66,12 @@ const DANGER_SIGN_PATTERNS = [
 // ─── Intent Router Service ────────────────────────────────────────────────────
 
 export class IntentRouterService implements IIntentRouter {
+
+  private bedrock: BedrockRuntimeClient;
+
+  constructor(bedrock?: BedrockRuntimeClient) {
+    this.bedrock = bedrock ?? new BedrockRuntimeClient({ region: process.env.AWS_REGION ?? 'ap-south-1' });
+  }
 
   /**
    * Stage 1: Keyword scan — only for short utterances (≤4 words).
@@ -222,5 +229,100 @@ export class IntentRouterService implements IIntentRouter {
     }
 
     return { intent: 'general_triage', confidence: extraction.confidence, triggerType: 'default', conditionId: extraction.condition_id };
+  }
+
+  /**
+   * Stage 2: Nova Lite Master Extraction (~150ms).
+   * Converts raw caller speech into the locked MasterExtractionResult JSON.
+   * This is the unified routing contract for all downstream paths.
+   *
+   * Uses amazon.nova-lite-v1:0 with a structured JSON prompt.
+   * On failure, returns a safe default (general_triage, no emergency).
+   */
+  async extractMasterTags(utterance: string, language: Language): Promise<MasterExtractionResult> {
+    const prompt = `You are a medical triage classifier for an Indian health helpline.
+Analyze the caller's utterance and return ONLY a JSON object with these fields:
+- is_emergency (boolean): true if life-threatening
+- condition_id (string): one of "cardiac","snakebite","child_fever","breathing_difficulty","general_fever","maternal_care","chronic_disease","drug_query","unknown"
+- patient_profile: { category: "pediatric"|"adult"|"maternal"|"geriatric"|"unknown", exact_age_mentioned: string|null, pregnancy_flag: "confirmed"|"possible"|"not_applicable"|"unknown" }
+- clinical_symptoms_english (string[]): symptoms translated to English
+- drugs_mentioned: array of { name: string, query_type: "safety"|"dosage"|"overdose"|"availability" }
+- severity_signal: "critical"|"urgent"|"mild"
+- duration: string|null (e.g. "2 days")
+- location_mentioned: string|null
+- danger_signs_present: string[] (e.g. "unconscious","not breathing")
+- confidence: number 0-1
+- language_register: "pure_hindi"|"hinglish"|"english"
+
+Caller language: ${language}
+Caller said: "${utterance}"
+
+Return ONLY valid JSON, no explanation.`;
+
+    try {
+      const response = await this.bedrock.send(new InvokeModelCommand({
+        modelId: 'amazon.nova-lite-v1:0',
+        contentType: 'application/json',
+        accept: 'application/json',
+        body: JSON.stringify({
+          inputText: prompt,
+          textGenerationConfig: {
+            maxTokenCount: 512,
+            temperature: 0.1,
+            topP: 0.9,
+          },
+        }),
+      }));
+
+      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+      const outputText = responseBody.results?.[0]?.outputText ?? responseBody.output?.text ?? '';
+
+      // Extract JSON from response — Nova Lite may wrap it in markdown code blocks
+      const jsonMatch = outputText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        Logger.warn('Nova Lite returned no JSON — falling back to default extraction', { utterance });
+        return this._defaultExtraction(utterance, language);
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]) as MasterExtractionResult;
+
+      // Validate required fields — if missing, fill with safe defaults
+      return {
+        is_emergency: parsed.is_emergency ?? false,
+        condition_id: parsed.condition_id ?? 'unknown',
+        patient_profile: parsed.patient_profile ?? { category: 'adult', exact_age_mentioned: null, pregnancy_flag: 'unknown' },
+        clinical_symptoms_english: parsed.clinical_symptoms_english ?? [],
+        drugs_mentioned: parsed.drugs_mentioned ?? [],
+        severity_signal: parsed.severity_signal ?? 'mild',
+        duration: parsed.duration ?? null,
+        location_mentioned: parsed.location_mentioned ?? null,
+        danger_signs_present: parsed.danger_signs_present ?? [],
+        confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0.5,
+        language_register: parsed.language_register ?? 'hinglish',
+      };
+    } catch (err) {
+      Logger.error('Nova Lite extraction failed — using default', { error: (err as Error).message, utterance });
+      return this._defaultExtraction(utterance, language);
+    }
+  }
+
+  /**
+   * Safe default extraction when Nova Lite is unavailable.
+   * Returns non-emergency general_triage so the caller still gets help.
+   */
+  private _defaultExtraction(utterance: string, language: Language): MasterExtractionResult {
+    return {
+      is_emergency: false,
+      condition_id: 'unknown',
+      patient_profile: { category: 'adult', exact_age_mentioned: null, pregnancy_flag: 'unknown' },
+      clinical_symptoms_english: [utterance],
+      drugs_mentioned: [],
+      severity_signal: 'mild',
+      duration: null,
+      location_mentioned: null,
+      danger_signs_present: [],
+      confidence: 0.3,
+      language_register: language === 'english' ? 'english' : 'hinglish',
+    };
   }
 }

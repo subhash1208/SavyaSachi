@@ -6,6 +6,7 @@ import {
   SymptomInput, TriageAssessment, TreatmentAdvice,
   KBResults, SeverityLevel, BilingualInstruction,
 } from '../models/types';
+import { ITriageAgent } from '../interfaces/ITriageAgent';
 import { sanitizeInput, detectRegister, buildLanguageInstruction } from '../utils/inputSanitizer';
 import { Logger } from '../utils/logger';
 
@@ -34,6 +35,25 @@ const CONDITION_ICD10: Record<string, string> = {
   diabetes:         'E11.9',
   hypertension:     'I10',
   tb:               'A15.0',
+  // Emergency conditions — normally ICD-10 comes from the emergency script,
+  // but if Nova Lite routes a borderline case to general triage, tagICD10()
+  // needs a fallback so the FHIR record isn't tagged R69 (unknown).
+  child_fever:              'A09',
+  cardiac:                  'I21.9',
+  snakebite:                'T63.0',
+  breathing_difficulty:     'J45.9',
+  stroke:                   'I64',
+  severe_bleeding:          'R58',
+  choking:                  'T17.9',
+  burns:                    'T30.0',
+  poisoning:                'T65.9',
+  anaphylaxis:              'T78.2',
+  seizure:                  'R56.9',
+  pregnancy_emergency:      'O14.9',
+  drowning:                 'T75.1',
+  unconsciousness:          'R40.2',
+  infant_not_breathing:     'P28.4',
+  heatstroke:               'T67.0',
 };
 
 // ─── Constitutional AI system prompt (base) ───────────────────────────────────
@@ -66,14 +86,14 @@ RESPOND ONLY with valid JSON matching this exact schema:
   "icd10Code": "string",
   "summaryHindi": "string — 1-2 sentences, in the language register instructed below",
   "summaryEnglish": "string — 1-2 sentences in English",
+  "treatmentInstructions": [{"hindi": "string", "english": "string"}],
   "followUpRequired": boolean,
-  "followUpInterval": "2h|24h|48h|1w|null",
-  "treatmentInstructions": [
-    { "hindi": "string", "english": "string" }
-  ],
-  "followUpQuestion": "string — one clarifying question to ask caller next, in the language register instructed",
-  "disclaimer": { "hindi": "Yeh AI ki salah hai. Doctor se zaroor milein.", "english": "This is AI guidance. Please consult a doctor." }
-}`;
+  "followUpInterval": "2h|24h|48h|1w|null"
+}
+
+treatmentInstructions: 1-3 condition-specific care instructions based on the KB protocols.
+Examples: ORS preparation for diarrhea, paracetamol dosing for fever, wound cleaning for burns.
+Do NOT include logistics (where to go, what to carry) — only clinical self-care steps.`;
 
 // ─── Nova Pro call ────────────────────────────────────────────────────────────
 
@@ -83,17 +103,21 @@ interface NovaProResponse {
   icd10Code: string;
   summaryHindi: string;
   summaryEnglish: string;
+  treatmentInstructions?: BilingualInstruction[];
   followUpRequired: boolean;
   followUpInterval: string | null;
-  treatmentInstructions: BilingualInstruction[];
-  followUpQuestion: string;
-  disclaimer: BilingualInstruction;
+  // followUpQuestion and disclaimer are intentionally NOT requested from Nova Pro.
+  // Follow-up questions come from IGeneralTriageKB, and disclaimers are hardcoded.
+  // treatmentInstructions IS requested — condition-specific clinical self-care steps
+  // (e.g., ORS for diarrhea, paracetamol dosing for fever). These are merged with
+  // static logistics instructions in generateTreatmentAdvice().
 }
 
 async function callNovaPro(
   input: SymptomInput,
   kbResults: KBResults,
   languageInstruction: string,
+  transcriptHistory?: string[],
 ): Promise<NovaProResponse> {
 
   // Build KB context from retrieved chunks
@@ -101,10 +125,23 @@ async function callNovaPro(
     ? `\nRELEVANT MEDICAL PROTOCOLS:\n${kbResults.chunks.map((c, i) => `[${i + 1}] ${c}`).join('\n')}\n`
     : '';
 
-  const userMessage = `${kbContext}
+  // Build conversation history context for multi-turn memory (Req 4.6)
+  // Without this, a caller who says "bukhar hai" on Turn 2 and "aur ulti bhi ho rahi hai"
+  // on Turn 3 would lose the fever context on Turn 3.
+  // Each utterance is sanitized individually — caller speech is untrusted input (Req 9.3).
+  const historyContext = transcriptHistory && transcriptHistory.length > 0
+    ? `\nCONVERSATION HISTORY (prior caller utterances):\n${transcriptHistory.map((u, i) => `Turn ${i + 1}: ${sanitizeInput(u)}`).join('\n')}\n`
+    : '';
+
+  // Sanitize only untrusted caller input — KB chunks and patient profile are system-generated.
+  // Sanitizing the entire message would corrupt medical protocol text (e.g., WHO text containing
+  // "system" or "ignore previous" in a clinical context would get [removed]).
+  const sanitizedSymptoms = input.clinicalSymptomsEnglish.map(s => sanitizeInput(s)).join(', ');
+
+  const userMessage = `${kbContext}${historyContext}
 Patient profile: ${input.patientProfile.category}, age: ${input.patientProfile.exact_age_mentioned ?? 'unknown'}, pregnancy: ${input.patientProfile.pregnancy_flag}
 Condition: ${input.conditionId}
-Symptoms: ${input.clinicalSymptomsEnglish.join(', ')}
+Symptoms: ${sanitizedSymptoms}
 Duration: ${input.duration ?? 'not specified'}
 Danger signs: ${input.dangerSignsPresent.length > 0 ? input.dangerSignsPresent.join(', ') : 'none'}
 
@@ -116,11 +153,11 @@ Assess and respond with JSON only.`.trim();
 
   const body = {
     messages: [
-      { role: 'user', content: [{ type: 'text', text: sanitizeInput(userMessage) }] },
+      { role: 'user', content: [{ type: 'text', text: userMessage }] },
     ],
     system: [{ text: systemPrompt }],
     inferenceConfig: {
-      maxTokens: 700,
+      maxTokens: 800,
       temperature: 0.1,
       topP: 0.9,
     },
@@ -138,20 +175,45 @@ Assess and respond with JSON only.`.trim();
   const text: string = responseBody?.output?.message?.content?.[0]?.text ?? '';
   const jsonText = text.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
 
-  return JSON.parse(jsonText) as NovaProResponse;
+  const parsed = JSON.parse(jsonText) as NovaProResponse;
+
+  // Validate severity — this drives care level routing and dispatch decisions.
+  // If Nova Pro hallucinates a severity value, the caller could be under-triaged.
+  const validSeverities: SeverityLevel[] = ['critical', 'urgent', 'non-urgent'];
+  if (!validSeverities.includes(parsed.severity)) {
+    Logger.error('Nova Pro returned invalid severity, forcing urgent', {
+      rawSeverity: parsed.severity,
+    });
+    parsed.severity = 'urgent';  // safe default — over-triage is better than under-triage
+  }
+
+  // Validate recommendedCareLevel — Nova Pro could hallucinate "ICU", "emergency_room", etc.
+  // Invalid care level would propagate to treatment advice and SMS, confusing the caller.
+  const validCareLevels: Array<TriageAssessment['recommendedCareLevel']> = ['home', 'PHC', 'CHC', 'district_hospital'];
+  if (!validCareLevels.includes(parsed.recommendedCareLevel)) {
+    Logger.error('Nova Pro returned invalid care level, deriving from severity', {
+      rawCareLevel: parsed.recommendedCareLevel,
+      severity: parsed.severity,
+    });
+    parsed.recommendedCareLevel = SEVERITY_CARE[parsed.severity];
+  }
+
+  return parsed;
 }
 
 // ─── Triage Agent service ─────────────────────────────────────────────────────
 
-export class TriageAgentService {
+export class TriageAgentService implements ITriageAgent {
 
   /**
    * Assesses symptoms using Nova Pro + KB chunks.
    * kbResults: retrieved ICMR/WHO protocol chunks from General Triage KB.
    * Empty kbResults is valid — Nova Pro falls back to training data.
-   * Req 4.1, 4.3, 4.4, 9.2, 9.3
+   * transcriptHistory: all prior caller utterances from ConversationState — passed to Nova Pro
+   * for multi-turn context so the LLM sees the full clinical picture across turns (Req 4.6).
+   * Req 4.1, 4.3, 4.4, 4.6, 9.2, 9.3
    */
-  async assessSymptoms(input: SymptomInput, kbResults: KBResults): Promise<TriageAssessment> {
+  async assessSymptoms(input: SymptomInput, kbResults: KBResults, transcriptHistory?: string[]): Promise<TriageAssessment> {
     Logger.info('Triage assessment started', {
       conditionId: input.conditionId,
       symptomCount: input.clinicalSymptomsEnglish.length,
@@ -164,16 +226,56 @@ export class TriageAgentService {
     const languageInstruction = buildLanguageInstruction(input.language, register);
 
     try {
-      const novaResult = await callNovaPro(input, kbResults, languageInstruction);
+      const novaResult = await callNovaPro(input, kbResults, languageInstruction, transcriptHistory);
+
+      // Cross-validate severity ↔ careLevel consistency.
+      // Nova Pro could return severity: 'critical' + careLevel: 'home' — a critical patient
+      // told to stay home. Or severity: 'non-urgent' + careLevel: 'district_hospital' — wasting
+      // scarce hospital resources. When they disagree, severity wins (it's the clinical signal)
+      // and careLevel is derived from the validated severity via SEVERITY_CARE.
+      //
+      // Minimum care level floors by severity:
+      // - critical: district_hospital (must go to hospital)
+      // - urgent: CHC (needs medical attention today)
+      // - non-urgent: home (rest at home is valid for mild cases)
+      const MINIMUM_CARE: Record<SeverityLevel, TriageAssessment['recommendedCareLevel']> = {
+        critical:     'district_hospital',
+        urgent:       'CHC',
+        'non-urgent': 'home',
+      };
+      let finalCareLevel = novaResult.recommendedCareLevel;
+      const minimumCareLevel = MINIMUM_CARE[novaResult.severity];
+      const careLevelRank: Record<string, number> = { home: 0, PHC: 1, CHC: 2, district_hospital: 3 };
+      const minimumRank = careLevelRank[minimumCareLevel] ?? 0;
+      const actualRank = careLevelRank[finalCareLevel] ?? 1;
+      if (actualRank < minimumRank) {
+        // Nova Pro recommended a care level BELOW the minimum for this severity.
+        // Over-triage (higher care level) is always allowed — Nova Pro may see comorbidities.
+        // Under-triage (lower care level) is corrected to the severity's default.
+        Logger.error('Nova Pro under-triaged care level vs severity, correcting', {
+          severity: novaResult.severity,
+          rawCareLevel: novaResult.recommendedCareLevel,
+          correctedCareLevel: SEVERITY_CARE[novaResult.severity],
+        });
+        finalCareLevel = SEVERITY_CARE[novaResult.severity];
+      }
+
+      // Validate followUpRequired — critical/urgent patients always need follow-up.
+      // Nova Pro might say followUpRequired: false for a critical patient, which would
+      // mean no callback is scheduled and the patient is forgotten after the call.
+      const followUpRequired = novaResult.severity === 'critical' || novaResult.severity === 'urgent'
+        ? true
+        : novaResult.followUpRequired;
 
       const assessment: TriageAssessment = {
         conditionId:          input.conditionId,
         icd10Code:            novaResult.icd10Code || this.tagICD10(input.conditionId),
         severity:             novaResult.severity,
-        recommendedCareLevel: novaResult.recommendedCareLevel,
+        recommendedCareLevel: finalCareLevel,
         summaryHindi:         novaResult.summaryHindi,
         summaryEnglish:       novaResult.summaryEnglish,
-        followUpRequired:     novaResult.followUpRequired,
+        treatmentInstructions: this._validateTreatmentInstructions(novaResult.treatmentInstructions),
+        followUpRequired,
         followUpInterval:     novaResult.followUpInterval ?? undefined,
       };
 
@@ -197,11 +299,15 @@ export class TriageAgentService {
 
   /**
    * Generates bilingual treatment advice from a triage assessment.
+   * Merges Nova Pro's condition-specific clinical instructions (e.g., ORS for diarrhea)
+   * with static logistics instructions (e.g., "go to CHC today").
+   * If Nova Pro didn't return treatmentInstructions (fallback path), only static logistics are used.
    */
   async generateTreatmentAdvice(assessment: TriageAssessment): Promise<TreatmentAdvice> {
-    const instructions = this._careInstructions(assessment.recommendedCareLevel);
+    const clinicalInstructions = assessment.treatmentInstructions ?? [];
+    const logisticsInstructions = this._careInstructions(assessment.recommendedCareLevel);
     return {
-      instructions,
+      instructions: [...clinicalInstructions, ...logisticsInstructions],
       disclaimer: {
         hindi:   'Yeh AI ki salah hai. Kisi bhi serious situation mein doctor se zaroor milein.',
         english: 'This is AI guidance. Please consult a doctor for any serious condition.',
@@ -225,6 +331,24 @@ export class TriageAgentService {
   }
 
   // ─── Private helpers ────────────────────────────────────────────────────────
+
+  /**
+   * Validates treatmentInstructions from Nova Pro.
+   * Nova Pro could return malformed items (missing hindi/english, non-array, etc.).
+   * Returns only well-formed BilingualInstruction items, or undefined if none valid.
+   */
+  private _validateTreatmentInstructions(
+    raw: BilingualInstruction[] | undefined,
+  ): BilingualInstruction[] | undefined {
+    if (!Array.isArray(raw) || raw.length === 0) return undefined;
+    const valid = raw.filter(
+      (item) =>
+        item &&
+        typeof item.hindi === 'string' && item.hindi.trim().length > 0 &&
+        typeof item.english === 'string' && item.english.trim().length > 0,
+    );
+    return valid.length > 0 ? valid : undefined;
+  }
 
   private _safeFallback(input: SymptomInput): TriageAssessment {
     const hasDangerSigns = input.dangerSignsPresent.length > 0;

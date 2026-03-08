@@ -1,7 +1,8 @@
 import {
   Language, Voice, EmergencyCondition, ChronicCondition, FacilityLevel,
   ActionType, DrugQueryType, SeverityLevel, TriageOutcome, DTMFAction,
-  ICD10Code, Duration, ScheduleId, S3Key, AudioStream, ImageData
+  ICD10Code, Duration, ScheduleId, S3Key, AudioStream, ImageData,
+  FollowUpPurpose
 } from './enums';
 
 export interface PatientProfile {
@@ -46,6 +47,29 @@ export interface ConversationState {
   locationCollected: boolean;
   callStartTime: string;
   clinicalSummary: string;            // rolling English summary from Nova Pro — replaced after each turn, passed as context to next turn
+  tier2Location?: {                   // Tier 2 phone-prefix location — stored in /incoming, read in /status for CallRecord
+    stdCode: string;
+    city: string;
+    state: string;
+    district: string;
+    accuracy: "district";
+    method: "automatic";
+  };
+  severity?: "critical" | "urgent" | "non-urgent";  // from triage assessment — stored in /gather, read in /status for CallRecord
+  recommendedCareLevel?: "home" | "PHC" | "CHC" | "district_hospital";  // from triage assessment — stored in /gather, read in /status for SFN triageResult
+  followUpRequired?: boolean;         // from triage assessment — stored in /gather, read in /status for SFN triageResult
+  followUpInterval?: string;          // from triage assessment — stored in /gather, read in /status for SFN ScheduleFollowUp
+  chronicCareEnrollment?: string;     // from mapToChronicCondition — stored in /gather, read in /status for SFN EnrollChronicCare
+  pendingDrugQuery?: {                // set when emergency wins but caller also asked a drug question
+    drugName: string;
+    queryType: string;
+  };
+  callerNumber?: string;              // stored in /incoming for /status to build CallRecord
+  drugQueryState?: 'awaiting_drug_name' | 'resolved';  // multi-turn drug conversation state
+  drugName?: string;                  // drug name extracted from caller utterance
+  tier1Location?: Tier1Location;      // Tier 1 voice location — stored after "Aap kahan hain?" response
+  locationPromptSent?: boolean;       // true after we asked for location — prevents re-asking
+  speechFailCount?: number;           // consecutive empty-speech turns — after 2, switch to DTMF-only mode (Req 1.4)
 }
 
 // ─── Location ────────────────────────────────────────────────────────────────
@@ -175,6 +199,7 @@ export interface TriageAssessment {
   recommendedCareLevel: "home" | "PHC" | "CHC" | "district_hospital";
   summaryHindi: string;
   summaryEnglish: string;
+  treatmentInstructions?: BilingualInstruction[];  // condition-specific clinical self-care from Nova Pro
   followUpRequired: boolean;
   followUpInterval?: string;
 }
@@ -236,7 +261,7 @@ export interface ClassificationInput {
 export interface IntentResult {
   intent: "emergency" | "general_triage" | "drug";
   confidence: number;
-  triggerType: "keyword" | "dtmf" | "emotion" | "sos" | "danger_sign" | "default";
+  triggerType: "keyword" | "dtmf" | "emotion" | "sos" | "danger_sign" | "extraction" | "default";
   matchedKeywords?: string[];
   needsSafetyCheck?: boolean;         // true when is_emergency=true but confidence < CONFIDENCE_THRESHOLD — signals call handler to invoke Nova Pro safety check before committing to emergency path
   conditionId?: string;               // from keyword match or MasterExtraction — used by call handler for DynamoDB script fetch and analytics logging (Req 2.11)
@@ -339,6 +364,7 @@ export interface CallRecord {
   language: Language;
   duration: number;
   triageOutcome: TriageOutcome;
+  conditionId: string;                // e.g., "cardiac", "maternal_care" — for QuickSight analytics (Req 2.11)
   icd10Code: string;
   severityClassification: SeverityLevel;
   dispatchType: "108" | "102" | "none";
@@ -380,6 +406,7 @@ export interface STDCodeEntry {
   city: string;
   state: string;
   district: string;
+  type?: 'landline' | 'mobile';  // present in DynamoDB seed data, optional in static fallback
 }
 
 // ─── Outbreak / Surveillance ─────────────────────────────────────────────────
@@ -443,6 +470,20 @@ export interface ActionResults {
   followUpScheduled: boolean;
   referralFacility?: Facility;
   surveillanceLogged: boolean;
+  chronicCareEnrolled?: boolean;
+}
+
+// ─── Follow-Up Scheduler ─────────────────────────────────────────────────────
+
+export interface FollowUpScheduleRecord {
+  scheduleId: string;
+  callId: string;
+  interval: Duration;
+  purpose: FollowUpPurpose;
+  ruleName: string;
+  scheduledAt: string;   // ISO timestamp of when the follow-up should fire
+  createdAt: string;
+  status: 'active' | 'triggered' | 'cancelled';
 }
 
 // ─── Multimodal Vision ───────────────────────────────────────────────────────
@@ -479,5 +520,5 @@ export {
   Language, Voice, EmergencyCondition, ChronicCondition, FacilityLevel,
   ActionType, DrugQueryType, SeverityLevel, TriageOutcome, DTMFAction,
   ICD10Code, Duration, ScheduleId, S3Key, AudioStream, ImageData,
-  CONFIDENCE_THRESHOLD
+  FollowUpPurpose, CONFIDENCE_THRESHOLD
 } from './enums';

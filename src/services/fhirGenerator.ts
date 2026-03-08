@@ -32,6 +32,11 @@ const ICD10_DISPLAY: Record<string, string> = {
   'I10':   'Essential (primary) hypertension',
   'A15.0': 'Tuberculosis of lung',
   'R50.9': 'Fever, unspecified',
+  'R51':   'Headache',
+  'R69':   'Illness, unspecified',
+  'Z34.9': 'Supervision of normal pregnancy, unspecified',
+  'Z87.39': 'Other personal history of other diseases and conditions',
+  'Z79.899': 'Other long term (current) drug therapy',
 };
 
 /**

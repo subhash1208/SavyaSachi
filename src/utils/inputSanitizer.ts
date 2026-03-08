@@ -53,9 +53,18 @@ export function sanitizeInput(text: string): string {
 /**
  * Returns true if the input contains injection patterns.
  * Used in property tests.
+ *
+ * NOTE: Each regex has the /g flag, so .test() advances lastIndex.
+ * We reset lastIndex before each test to avoid the classic JS gotcha
+ * where calling containsInjection twice on the same string gives
+ * different results (first call advances lastIndex, second call
+ * starts from the middle and misses the match).
  */
 export function containsInjection(text: string): boolean {
-  return INJECTION_PATTERNS.some((p) => p.test(text));
+  return INJECTION_PATTERNS.some((p) => {
+    p.lastIndex = 0;
+    return p.test(text);
+  });
 }
 
 // ─── Language Register Detection ──────────────────────────────────────────────
