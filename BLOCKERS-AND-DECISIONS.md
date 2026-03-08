@@ -131,4 +131,31 @@ Amazon Connect + Nova 2 Sonic handles emotion detection natively from the audio 
 
 ---
 
-**Last Updated:** March 1, 2026
+## KNOWN LIMITATION #2 — chronicCareEnrollment Lost on Dropped Calls
+**Date:** March 8, 2026
+**Status:** KNOWN LIMITATION — no retry in prototype
+
+### What Happens
+`state.chronicCareEnrollment` is written to DynamoDB `ConversationState` during `handleGather`
+(when Nova Pro detects a chronic condition like diabetes or hypertension).  
+It is **only acted on** in `handleStatus` (call-end webhook from Twilio).  
+If the call drops before the `/status` callback fires (low-signal area, Twilio timeout, Lambda cold
+start), the state record is never deleted but `handleStatus` is never called — the enrollment
+action is permanently lost.
+
+### Impact
+A diabetic patient in a low-connectivity village who gets triaged AND then drops the call never gets
+enrolled in the chronic care follow-up programme. The system has no way to detect the missed enrollment.
+
+### Prototype Workaround
+None in prototype. Data is in DynamoDB with TTL=1h; a manual reconciliation scan could recover it.
+
+### Production Fix
+1. Use a DynamoDB Stream trigger: on TTL expiry of a record with non-null `chronicCareEnrollment`,
+   fire a Step Functions execution to complete the enrollment.
+2. Or use Twilio's `statusCallbackEvent=completed` with a retry webhook — Twilio retries the
+   status callback up to 3 times if the Lambda returns non-2xx.
+
+---
+
+**Last Updated:** March 8, 2026

@@ -5,4 +5,9 @@ export interface IDiseaseSurveillance {
   aggregateByConditionAndLocation(timeWindow: Duration): Promise<AggregatedData>;
   detectAnomaly(aggregatedData: AggregatedData, threshold: number): OutbreakAlert[];
   alertDHO(alert: OutbreakAlert): Promise<void>;
+  runSurveillancePipeline(
+    timeWindow: Duration,
+    defaultThreshold: number,
+    recentlyAlerted?: Set<string>,
+  ): Promise<OutbreakAlert[]>;
 }
