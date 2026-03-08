@@ -1,0 +1,373 @@
+{
+  "Comment": "VaidyaVaani post-triage parallel action orchestration. Triggered by /status Lambda after call ends. Req 7.6.",
+  "StartAt": "RouteByTriagePath",
+  "States": {
+
+    "RouteByTriagePath": {
+      "Type": "Choice",
+      "Comment": "Branch on triagePath from the call record. Emergency and general triage have different action sets.",
+      "Choices": [
+        {
+          "Variable": "$.triagePath",
+          "StringEquals": "emergency",
+          "Next": "EmergencyParallelActions"
+        },
+        {
+          "Variable": "$.triagePath",
+          "StringEquals": "general",
+          "Next": "GeneralTriageParallelActions"
+        },
+        {
+          "Variable": "$.triagePath",
+          "StringEquals": "drug",
+          "Next": "DrugQueryParallelActions"
+        }
+      ],
+      "Default": "LogIncompleteCall"
+    },
+
+    "EmergencyParallelActions": {
+      "Type": "Parallel",
+      "Comment": "All emergency post-triage actions fire simultaneously. allSettled semantics — one failure does not block others.",
+      "Branches": [
+        {
+          "StartAt": "SendTriageSMS",
+          "States": {
+            "SendTriageSMS": {
+              "Type": "Task",
+              "Resource": "${SendSmsLambdaArn}",
+              "Parameters": {
+                "phoneNumber.$": "$.callRecord.callerNumber",
+                "triageResult.$": "$.triageResult"
+              },
+              "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "MaxAttempts": 2, "IntervalSeconds": 2 }],
+              "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "SMSFailed" }],
+              "End": true
+            },
+            "SMSFailed": {
+              "Type": "Pass",
+              "Comment": "SMS failure is non-blocking — log and continue.",
+              "Result": { "smsSent": false },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "ExecuteEmergencyDispatch",
+          "States": {
+            "ExecuteEmergencyDispatch": {
+              "Type": "Task",
+              "Resource": "${EmergencyDispatchLambdaArn}",
+              "Parameters": {
+                "callId.$": "$.callRecord.callId",
+                "condition.$": "$.conditionId",
+                "icd10Code.$": "$.callRecord.icd10Code",
+                "location.$": "$.callRecord.location",
+                "callerNumber.$": "$.callRecord.callerNumber",
+                "dispatchType": "108",
+                "abcdeSummary.$": "$.abcdeSummary"
+              },
+              "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "MaxAttempts": 1, "IntervalSeconds": 5 }],
+              "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "DispatchFailed" }],
+              "End": true
+            },
+            "DispatchFailed": {
+              "Type": "Pass",
+              "Comment": "Dispatch failure — 108 bridge was already attempted during the call. Log only.",
+              "Result": { "dispatchResult": { "layer": 3, "success": false } },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "AlertASHAWorker",
+          "States": {
+            "AlertASHAWorker": {
+              "Type": "Task",
+              "Resource": "${ASHAAlertLambdaArn}",
+              "Parameters": {
+                "location.$": "$.callRecord.location",
+                "patientSummary": {
+                  "callId.$": "$.callRecord.callId",
+                  "conditionId.$": "$.conditionId",
+                  "icd10Code.$": "$.callRecord.icd10Code",
+                  "severity.$": "$.callRecord.severityClassification"
+                }
+              },
+              "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "MaxAttempts": 2, "IntervalSeconds": 3 }],
+              "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "ASHAAlertFailed" }],
+              "End": true
+            },
+            "ASHAAlertFailed": {
+              "Type": "Pass",
+              "Result": { "ashaAlerted": false },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "LogSurveillance",
+          "States": {
+            "LogSurveillance": {
+              "Type": "Task",
+              "Resource": "${SurveillanceLogLambdaArn}",
+              "Parameters": {
+                "callId.$": "$.callRecord.callId",
+                "icd10Code.$": "$.callRecord.icd10Code",
+                "district.$": "$.callRecord.location.tier2Phone.district",
+                "state.$": "$.callRecord.location.tier2Phone.state",
+                "timestamp.$": "$.callRecord.timestamp"
+              },
+              "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "MaxAttempts": 2, "IntervalSeconds": 2 }],
+              "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "SurveillanceFailed" }],
+              "End": true
+            },
+            "SurveillanceFailed": {
+              "Type": "Pass",
+              "Result": { "surveillanceLogged": false },
+              "End": true
+            }
+          }
+        }
+      ],
+      "Next": "LogCallRecord",
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "LogCallRecord" }]
+    },
+
+    "GeneralTriageParallelActions": {
+      "Type": "Parallel",
+      "Comment": "Post-triage actions for non-emergency calls: SMS + referral + follow-up + ASHA + surveillance + chronic care.",
+      "Branches": [
+        {
+          "StartAt": "ReferralLookup",
+          "States": {
+            "ReferralLookup": {
+              "Type": "Task",
+              "Comment": "Referral runs first so SMS can include the facility name. Req 7.4.",
+              "Resource": "${ReferralLambdaArn}",
+              "Parameters": {
+                "location.$": "$.callRecord.location",
+                "careLevel.$": "$.triageResult.recommendedCareLevel"
+              },
+              "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "MaxAttempts": 2, "IntervalSeconds": 2 }],
+              "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "ReferralFailed" }],
+              "End": true
+            },
+            "ReferralFailed": {
+              "Type": "Pass",
+              "Result": { "referralFacility": null },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "SendTriageSMSGeneral",
+          "States": {
+            "SendTriageSMSGeneral": {
+              "Type": "Task",
+              "Resource": "${SendSmsLambdaArn}",
+              "Parameters": {
+                "phoneNumber.$": "$.callRecord.callerNumber",
+                "triageResult.$": "$.triageResult"
+              },
+              "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "MaxAttempts": 2, "IntervalSeconds": 2 }],
+              "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "SMSGeneralFailed" }],
+              "End": true
+            },
+            "SMSGeneralFailed": {
+              "Type": "Pass",
+              "Result": { "smsSent": false },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "CheckFollowUpRequired",
+          "States": {
+            "CheckFollowUpRequired": {
+              "Type": "Choice",
+              "Comment": "Guard: only schedule follow-up if followUpRequired=true AND followUpInterval is present. Prevents Step Functions path error on undefined followUpInterval.",
+              "Choices": [
+                {
+                  "And": [
+                    { "Variable": "$.triageResult.followUpRequired", "BooleanEquals": true },
+                    { "Variable": "$.triageResult.followUpInterval", "IsPresent": true }
+                  ],
+                  "Next": "ScheduleFollowUp"
+                }
+              ],
+              "Default": "FollowUpSkipped"
+            },
+            "ScheduleFollowUp": {
+              "Type": "Task",
+              "Resource": "${FollowUpLambdaArn}",
+              "Parameters": {
+                "callId.$": "$.callRecord.callId",
+                "interval.$": "$.triageResult.followUpInterval",
+                "purpose": "acute_check"
+              },
+              "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "MaxAttempts": 2, "IntervalSeconds": 3 }],
+              "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "FollowUpFailed" }],
+              "End": true
+            },
+            "FollowUpFailed": {
+              "Type": "Pass",
+              "Result": { "followUpScheduled": false },
+              "End": true
+            },
+            "FollowUpSkipped": {
+              "Type": "Pass",
+              "Result": { "followUpScheduled": false },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "CheckChronicCare",
+          "States": {
+            "CheckChronicCare": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.triageResult.chronicCareEnrollment",
+                  "IsPresent": true,
+                  "Next": "EnrollChronicCare"
+                }
+              ],
+              "Default": "ChronicCareSkipped"
+            },
+            "EnrollChronicCare": {
+              "Type": "Task",
+              "Resource": "${ChronicCareLambdaArn}",
+              "Parameters": {
+                "callRecord.$": "$.callRecord",
+                "condition.$": "$.triageResult.chronicCareEnrollment"
+              },
+              "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "MaxAttempts": 2, "IntervalSeconds": 3 }],
+              "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "ChronicCareFailed" }],
+              "End": true
+            },
+            "ChronicCareFailed": {
+              "Type": "Pass",
+              "Result": { "chronicCareEnrolled": false },
+              "End": true
+            },
+            "ChronicCareSkipped": {
+              "Type": "Pass",
+              "Result": { "chronicCareEnrolled": false },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "LogSurveillanceGeneral",
+          "States": {
+            "LogSurveillanceGeneral": {
+              "Type": "Task",
+              "Resource": "${SurveillanceLogLambdaArn}",
+              "Parameters": {
+                "callId.$": "$.callRecord.callId",
+                "icd10Code.$": "$.callRecord.icd10Code",
+                "district.$": "$.callRecord.location.tier2Phone.district",
+                "state.$": "$.callRecord.location.tier2Phone.state",
+                "timestamp.$": "$.callRecord.timestamp"
+              },
+              "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "MaxAttempts": 2, "IntervalSeconds": 2 }],
+              "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "SurveillanceGeneralFailed" }],
+              "End": true
+            },
+            "SurveillanceGeneralFailed": {
+              "Type": "Pass",
+              "Result": { "surveillanceLogged": false },
+              "End": true
+            }
+          }
+        }
+      ],
+      "Next": "LogCallRecord",
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "LogCallRecord" }]
+    },
+
+    "DrugQueryParallelActions": {
+      "Type": "Parallel",
+      "Comment": "Drug query post-triage: SMS + surveillance only. No dispatch, no follow-up.",
+      "Branches": [
+        {
+          "StartAt": "SendDrugSMS",
+          "States": {
+            "SendDrugSMS": {
+              "Type": "Task",
+              "Resource": "${SendSmsLambdaArn}",
+              "Parameters": {
+                "phoneNumber.$": "$.callRecord.callerNumber",
+                "triageResult.$": "$.triageResult"
+              },
+              "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "MaxAttempts": 2, "IntervalSeconds": 2 }],
+              "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "DrugSMSFailed" }],
+              "End": true
+            },
+            "DrugSMSFailed": {
+              "Type": "Pass",
+              "Result": { "smsSent": false },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "LogSurveillanceDrug",
+          "States": {
+            "LogSurveillanceDrug": {
+              "Type": "Task",
+              "Resource": "${SurveillanceLogLambdaArn}",
+              "Parameters": {
+                "callId.$": "$.callRecord.callId",
+                "icd10Code.$": "$.callRecord.icd10Code",
+                "district.$": "$.callRecord.location.tier2Phone.district",
+                "state.$": "$.callRecord.location.tier2Phone.state",
+                "timestamp.$": "$.callRecord.timestamp"
+              },
+              "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "MaxAttempts": 2, "IntervalSeconds": 2 }],
+              "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "DrugSurveillanceFailed" }],
+              "End": true
+            },
+            "DrugSurveillanceFailed": {
+              "Type": "Pass",
+              "Result": { "surveillanceLogged": false },
+              "End": true
+            }
+          }
+        }
+      ],
+      "Next": "LogCallRecord",
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "LogCallRecord" }]
+    },
+
+    "LogCallRecord": {
+      "Type": "Task",
+      "Comment": "Final step: persist the full CallRecord to DynamoDB. Always runs regardless of parallel branch outcomes.",
+      "Resource": "${CallLoggerLambdaArn}",
+      "Parameters": {
+        "callRecord.$": "$.callRecord"
+      },
+      "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "MaxAttempts": 3, "IntervalSeconds": 5 }],
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "WorkflowComplete" }],
+      "Next": "WorkflowComplete"
+    },
+
+    "LogIncompleteCall": {
+      "Type": "Task",
+      "Comment": "Incomplete calls (dropped, no-answer) still get logged for analytics.",
+      "Resource": "${CallLoggerLambdaArn}",
+      "Parameters": {
+        "callRecord.$": "$.callRecord"
+      },
+      "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "MaxAttempts": 2, "IntervalSeconds": 3 }],
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "WorkflowComplete" }],
+      "Next": "WorkflowComplete"
+    },
+
+    "WorkflowComplete": {
+      "Type": "Succeed"
+    }
+  }
+}
