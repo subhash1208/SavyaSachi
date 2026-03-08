@@ -661,14 +661,15 @@ See `ETL-PIPELINE-DESIGN.md` for the full ingestion pipeline (3 steps, 2 Lambdas
 **Spike Detection Algorithm:**
 - Groups call records by ICD-10 code + district + state within a configurable time window
 - Tracks village-level breakdown within each district group for hotspot identification (Req 8.5: "Khedi village")
-- Compares each group's count against condition-specific thresholds (CONDITION_THRESHOLDS lookup: A90 Dengue=5, A01.0 Typhoid=3, B54 Malaria=5, A09 Diarrhea=8, J06.9 URI=15; default=10 for unknown codes)
-- Severity tiers: `watch` (1-2x threshold), `alert` (2-3x), `critical` (>3x)
+- Compares each group's count against condition-specific thresholds (CONDITION_THRESHOLDS lookup: A90 Dengue=5, A01.0 Typhoid=3, B54 Malaria=5, A09 Diarrhea=8, A15 TB=5, A15.0 TB(respiratory)=5, J06.9 URI=15, R50.9 Fever=12, E86.0 Dehydration=6; default=10 for unknown codes)
+- Severity tiers: `watch` (>1x to ≤2x threshold), `alert` (>2x to ≤3x), `critical` (>3x)
 - Count exactly at threshold is NOT flagged (must exceed)
 - Alert IDs use monotonic counter to avoid same-millisecond collisions
+- Counter is reset at the start of each `runSurveillancePipeline` call to prevent cross-invocation leakage in warm Lambda containers
 
 **Batch Pipeline Orchestration:**
 - `runSurveillancePipeline(timeWindow, defaultThreshold, recentlyAlerted)` chains aggregate → detect → alert
-- Deduplication: accepts a `Set<string>` of recently-alerted `icd10Code|district` keys to suppress duplicate alerts across consecutive cron runs
+- Deduplication: accepts a `Set<string>` of recently-alerted keys to suppress duplicate alerts across consecutive cron runs. Keys use format `icd10Code|district|severity` so that severity escalations (watch → alert → critical) are NOT suppressed — the DHO must be re-alerted when an outbreak worsens. Legacy keys without severity (`icd10Code|district`) suppress all severities for backward compatibility.
 - The EventBridge Lambda handler maintains this set in DynamoDB (TTL = time window)
 
 **Dependencies (injected via DI):**
@@ -676,9 +677,10 @@ See `ETL-PIPELINE-DESIGN.md` for the full ingestion pipeline (3 steps, 2 Lambdas
 - `IDHONotifier` — publishes OutbreakAlert to SNS topic for DHO notification
 
 **Interfaces:**
-- `aggregateByConditionAndLocation(timeWindow: Duration): AggregatedData` — Group calls
+- `aggregateByConditionAndLocation(timeWindow: Duration): Promise<AggregatedData>` — Group calls
 - `detectAnomaly(aggregatedData: AggregatedData, threshold: number): OutbreakAlert[]` — Spike detection
-- `alertDHO(alert: OutbreakAlert): void` — Notify District Health Officer via dashboard
+- `alertDHO(alert: OutbreakAlert): Promise<void>` — Notify District Health Officer via dashboard
+- `runSurveillancePipeline(timeWindow, defaultThreshold, recentlyAlerted?): Promise<OutbreakAlert[]>` — Full pipeline entry point for EventBridge Lambda
 
 ### 15. ASHA_Worker_Agent (Lambda + SNS)
 
@@ -840,15 +842,21 @@ export interface IDiseaseSurveillance {
   aggregateByConditionAndLocation(timeWindow: Duration): Promise<AggregatedData>;
   detectAnomaly(aggregatedData: AggregatedData, threshold: number): OutbreakAlert[];
   alertDHO(alert: OutbreakAlert): Promise<void>;
+  runSurveillancePipeline(
+    timeWindow: Duration,
+    defaultThreshold: number,
+    recentlyAlerted?: Set<string>,
+  ): Promise<OutbreakAlert[]>;
 }
 
 // src/interfaces/IChronicCareAgent.ts
 export interface IChronicCareAgent {
   enrollPatient(callRecord: CallRecord, condition: ChronicCondition): Promise<ChronicCareEnrollment>;
   getMonitoringChecklist(condition: ChronicCondition): string[];
+  getFullChecklist(condition: ChronicCondition): MonitoringChecklist;  // items + frequency + alert thresholds
 }
 
-// src/interfaces/IMultimodalVision.ts
+// src/interfaces/IMultimodalVision.ts — DEFERRED (production phase, photo feature stalled)
 export interface IMultimodalVision {
   analyzeImage(imageData: ImageData, context: TriageContext): Promise<VisualAssessment>;
   identifySnakeSpecies(imageData: ImageData): Promise<SnakeIdentification>;
@@ -1219,7 +1227,7 @@ interface ClassificationInput {
 interface IntentResult {
   intent: "emergency" | "general_triage" | "drug";
   confidence: number;
-  triggerType: "keyword" | "dtmf" | "emotion" | "sos" | "danger_sign" | "default";
+  triggerType: "keyword" | "dtmf" | "emotion" | "sos" | "danger_sign" | "extraction" | "default";
   matchedKeywords?: string[];
   needsSafetyCheck?: boolean;         // true when is_emergency=true but confidence < CONFIDENCE_THRESHOLD — call handler invokes Nova Pro safety check before committing to emergency path
   conditionId?: string;               // from keyword match or MasterExtraction — used by call handler for DynamoDB script fetch and analytics logging (Req 2.11)

@@ -1,9 +1,10 @@
-import { TriageResult, LocationData, ActionResults, PatientSummary } from '../models/types';
+import { TriageResult, LocationData, ActionResults, PatientSummary, CallRecord } from '../models/types';
 import { IActionOrchestrator } from '../interfaces/IActionOrchestrator';
 import { ISmsService } from '../interfaces/ISmsService';
 import { IReferralAgent } from '../interfaces/IReferralAgent';
 import { IFollowUpScheduler } from '../interfaces/IFollowUpScheduler';
 import { IASHAWorkerAgent } from '../interfaces/IASHAWorkerAgent';
+import { IChronicCareAgent } from '../interfaces/IChronicCareAgent';
 import { FacilityLevel } from '../models/enums';
 import { Logger } from '../utils/logger';
 
@@ -47,6 +48,7 @@ export class ActionOrchestratorService implements IActionOrchestrator {
     private readonly _followUp: IFollowUpScheduler,
     private readonly _asha: IASHAWorkerAgent,
     private readonly _surveillanceLogger?: ISurveillanceLogger,
+    private readonly _chronicCare?: IChronicCareAgent,
   ) {}
 
   /**
@@ -117,6 +119,13 @@ export class ActionOrchestratorService implements IActionOrchestrator {
       this._logSurveillance(triageResult, location, results)
     );
 
+    // 6. Chronic care enrollment — only if triage flagged a chronic condition
+    if (triageResult.chronicCareEnrollment && this._chronicCare) {
+      actions.push(
+        this._enrollChronicCare(triageResult, location, callerNumber, results)
+      );
+    }
+
     // Fire all in parallel — allSettled ensures no single failure blocks others
     await Promise.allSettled(actions);
 
@@ -127,6 +136,7 @@ export class ActionOrchestratorService implements IActionOrchestrator {
       followUp: results.followUpScheduled,
       asha: results.ashaAlerted,
       surveillance: results.surveillanceLogged,
+      chronicCare: results.chronicCareEnrolled ?? false,
     });
 
     return results;
@@ -306,6 +316,70 @@ export class ActionOrchestratorService implements IActionOrchestrator {
         error: (err as Error).message,
       });
       // Non-blocking — surveillance failure doesn't affect patient care
+    }
+  }
+
+  /**
+   * Enrolls a chronic care patient and assigns an ASHA worker.
+   *
+   * Real-world scenario: Ramesh, 58, calls about excessive thirst and frequent
+   * urination. Nova Pro triages → diabetes (non-urgent). The orchestrator fires
+   * this action in parallel with SMS, follow-up, and surveillance. The ASHA worker
+   * in Ramesh's village gets an SMS with a weekly blood sugar checklist.
+   *
+   * Req 11.1: Chronic care enrollment with ASHA assignment.
+   */
+  private async _enrollChronicCare(
+    triageResult: TriageResult,
+    location: LocationData,
+    callerNumber: string,
+    results: ActionResults,
+  ): Promise<void> {
+    if (!this._chronicCare || !triageResult.chronicCareEnrollment) return;
+
+    try {
+      // Build a minimal CallRecord from what the orchestrator has.
+      // The full CallRecord is assembled by the call handler (Task 16) —
+      // here we use the triage result fields to construct what enrollPatient needs.
+      const callRecord: CallRecord = {
+        callId: triageResult.callId,
+        timestamp: new Date().toISOString(),
+        ttl: Math.floor(Date.now() / 1000) + 90 * 24 * 60 * 60, // 90 days
+        callerNumber,
+        callSourceType: 'unknown',
+        language: 'hindi',
+        duration: 0,
+        triageOutcome: 'general_triage_complete',
+        conditionId: triageResult.condition,
+        icd10Code: triageResult.icd10Code,
+        severityClassification: triageResult.severity,
+        dispatchType: triageResult.dispatchType,
+        actionsTaken: ['chronic_enrollment'],
+        location,
+        recordingS3Key: '',
+        bedrockTraceId: '',
+        fhirRecord: {
+          resourceType: 'Condition',
+          code: { coding: [{ system: 'http://hl7.org/fhir/sid/icd-10', code: triageResult.icd10Code, display: triageResult.condition }] },
+          recordedDate: new Date().toISOString(),
+          severity: { coding: [{ system: 'http://snomed.info/sct', code: '6736007', display: triageResult.severity }] },
+        },
+      };
+
+      await this._chronicCare.enrollPatient(callRecord, triageResult.chronicCareEnrollment);
+      results.chronicCareEnrolled = true;
+
+      Logger.info('Chronic care enrollment completed via orchestrator', {
+        callId: triageResult.callId,
+        condition: triageResult.chronicCareEnrollment,
+      });
+    } catch (err) {
+      Logger.error('Chronic care enrollment failed in orchestrator', {
+        callId: triageResult.callId,
+        condition: triageResult.chronicCareEnrollment,
+        error: (err as Error).message,
+      });
+      // Non-blocking — enrollment failure doesn't affect other actions
     }
   }
 

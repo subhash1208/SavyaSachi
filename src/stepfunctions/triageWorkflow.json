@@ -37,7 +37,7 @@
               "Type": "Task",
               "Resource": "${SendSmsLambdaArn}",
               "Parameters": {
-                "phoneNumber.$": "$.callRecord.callerNumber",
+                "phoneNumber.$": "$.secureCallerNumber",
                 "triageResult.$": "$.triageResult"
               },
               "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "MaxAttempts": 2, "IntervalSeconds": 2 }],
@@ -63,7 +63,7 @@
                 "condition.$": "$.conditionId",
                 "icd10Code.$": "$.callRecord.icd10Code",
                 "location.$": "$.callRecord.location",
-                "callerNumber.$": "$.callRecord.callerNumber",
+                "callerNumber.$": "$.secureCallerNumber",
                 "dispatchType": "108",
                 "abcdeSummary.$": "$.abcdeSummary"
               },
@@ -167,7 +167,7 @@
               "Type": "Task",
               "Resource": "${SendSmsLambdaArn}",
               "Parameters": {
-                "phoneNumber.$": "$.callRecord.callerNumber",
+                "phoneNumber.$": "$.secureCallerNumber",
                 "triageResult.$": "$.triageResult"
               },
               "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "MaxAttempts": 2, "IntervalSeconds": 2 }],
@@ -299,7 +299,7 @@
               "Type": "Task",
               "Resource": "${SendSmsLambdaArn}",
               "Parameters": {
-                "phoneNumber.$": "$.callRecord.callerNumber",
+                "phoneNumber.$": "$.secureCallerNumber",
                 "triageResult.$": "$.triageResult"
               },
               "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "MaxAttempts": 2, "IntervalSeconds": 2 }],

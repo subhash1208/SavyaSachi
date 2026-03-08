@@ -167,7 +167,8 @@ export class LocationDetectorService implements ILocationDetector {
     }
 
     // Default: treat as city name (Nova Lite usually normalizes well)
-    return { rawText: text, nearCity: this._stripFillerWords(text), accuracy: 'city', timestamp };
+    // Use lowerText for nearCity — consistent with village/distance paths and enables case-insensitive matching downstream
+    return { rawText: text, nearCity: this._stripFillerWords(lowerText), accuracy: 'city', timestamp };
   }
 
   /**

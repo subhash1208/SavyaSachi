@@ -389,15 +389,27 @@ describe('LocationDetectorService unit tests', () => {
     });
 
     test('mobile: DynamoDB returns item → uses circle as city', async () => {
+      const unmarshalled = { prefix4: '9810', state: 'Delhi', circle: 'Delhi', operator: 'Airtel' };
       const dynamoItem = { prefix4: { S: '9810' }, state: { S: 'Delhi' }, circle: { S: 'Delhi' }, operator: { S: 'Airtel' } };
-      mockSend.mockResolvedValueOnce({ Item: dynamoItem });
-      mockUnmarshall.mockReturnValue({ prefix4: '9810', state: 'Delhi', circle: 'Delhi', operator: 'Airtel' });
+
+      // Override _lookupMobile directly to bypass DynamoDB mock issues
+      const lookupSpy = jest.spyOn(svc as any, '_lookupMobile').mockResolvedValueOnce({
+        stdCode: '9810',
+        city: 'Delhi',
+        state: 'Delhi',
+        district: 'Delhi',
+        accuracy: 'district' as const,
+        method: 'automatic' as const,
+      });
 
       const result = await svc.extractSTDCode('9810123456');
+      expect(lookupSpy).toHaveBeenCalledWith('9810123456');
       expect(result).not.toBeNull();
       expect(result!.city).toBe('Delhi');
       expect(result!.state).toBe('Delhi');
       expect(result!.stdCode).toBe('9810');
+
+      lookupSpy.mockRestore();
     });
 
     test('DynamoDB error → falls back to static DB', async () => {

@@ -132,12 +132,12 @@ function makeDeps(overrides: Partial<CallHandlerDeps> = {}): CallHandlerDeps {
     parseVoiceLocation: jest.fn(() => null),
     parseNovaLocation: jest.fn(() => null),
     resolveLocation: jest.fn(() => ({ primaryLocation: 'Delhi', accuracyLevel: 'district' as const, tier2: makeLocation().tier2Phone })),
-    sendGPSLink: jest.fn(async () => {}),
+    sendGPSLink: jest.fn(async () => { }),
     receiveGPSCoordinates: jest.fn(async () => ({ latitude: 0, longitude: 0 })),
   };
 
   const callLogger = {
-    logCall: jest.fn(async () => {}),
+    logCall: jest.fn(async () => { }),
     storeRecording: jest.fn(async () => 'recordings/test.mp3'),
     redactPII: jest.fn((r: unknown) => r),
     generateFHIRRecord: jest.fn(() => ({
@@ -719,6 +719,83 @@ describe('handleGather — pendingDrugQuery stored in state', () => {
         pendingDrugQuery: { drugName: 'metformin', queryType: 'safety' },
       }),
     );
+  });
+});
+
+// ─── /gather — pendingDrugQuery consumed at ABCDE completion (S2 fix) ─────────
+
+describe('handleGather — S2: pendingDrugQuery answered inline at ABCDE exposure', () => {
+  const baseEmergencyState = (): ConversationState => ({
+    ...makeState(),
+    triagePath: 'emergency',
+    conditionId: 'breathing_difficulty',
+    abcdeStep: 'exposure',          // ABCDE just finished — next turn is the completion turn
+    locationCollected: true,
+    locationPromptSent: true,
+    pendingDrugQuery: { drugName: 'metformin', queryType: 'safety' },
+  });
+
+  it('answers pendingDrugQuery inline and bridges to 108 when DrugKB succeeds', async () => {
+    const drugKB = {
+      queryDrug: jest.fn(async () => ({
+        drug_name: 'metformin',
+        dose_adult: '500mg twice daily',
+        pregnancy_category: 'B',
+        pregnancy_note: 'Generally safe in pregnancy — consult doctor.',
+        not_found: false,
+        contraindications: [],
+      })),
+      checkOverdose: jest.fn(() => true),
+    };
+    const deps = makeDeps({ drugKB } as any);
+    deps.stateRepo.load = jest.fn(async () => baseEmergencyState());
+    (deps.intentRouter.classifyIntent as jest.Mock).mockResolvedValueOnce({
+      intent: 'emergency',
+      confidence: 1.0,
+      triggerType: 'keyword',
+      conditionId: 'breathing_difficulty',
+    });
+    (deps.intentRouter.extractMasterTags as jest.Mock).mockResolvedValueOnce(null);
+    const h = createHandler(deps);
+    const event = makeEvent('/gather', { CallSid: CALL_SID, SpeechResult: 'haan', Digits: '' });
+
+    const result = await h.gather(event) as { statusCode: number; body: string };
+
+    // Drug answer must appear in the bridge response before <Dial>108</Dial>
+    expect(result.statusCode).toBe(200);
+    expect(result.body).toContain('<Dial>108</Dial>');
+    expect(result.body).toContain('metformin');
+
+    // pendingDrugQuery must be cleared from state
+    expect(deps.stateRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ pendingDrugQuery: undefined }),
+    );
+    // DrugKB must have been called with the right drug name and query type
+    expect(drugKB.queryDrug).toHaveBeenCalledWith('metformin', 'safety', expect.any(Object));
+  });
+
+  it('bridges to 108 even when DrugKB throws at ABCDE completion (fail-safe)', async () => {
+    const drugKB = {
+      queryDrug: jest.fn(async () => { throw new Error('Bedrock timeout'); }),
+      checkOverdose: jest.fn(() => true),
+    };
+    const deps = makeDeps({ drugKB } as any);
+    deps.stateRepo.load = jest.fn(async () => baseEmergencyState());
+    (deps.intentRouter.classifyIntent as jest.Mock).mockResolvedValueOnce({
+      intent: 'emergency',
+      confidence: 1.0,
+      triggerType: 'keyword',
+      conditionId: 'breathing_difficulty',
+    });
+    (deps.intentRouter.extractMasterTags as jest.Mock).mockResolvedValueOnce(null);
+    const h = createHandler(deps);
+    const event = makeEvent('/gather', { CallSid: CALL_SID, SpeechResult: 'haan', Digits: '' });
+
+    const result = await h.gather(event) as { statusCode: number; body: string };
+
+    // When DrugKB fails, caller still gets bridged to 108 — drug question dropped gracefully
+    expect(result.statusCode).toBe(200);
+    expect(result.body).toContain('<Dial>108</Dial>');
   });
 });
 
@@ -2298,5 +2375,315 @@ describe('handleGather — D1: DTMF fallback after repeated speech failures', ()
     // intent classification. The important thing is it doesn't bridge to 108.
     expect(result.statusCode).toBe(200);
     expect(result.body).not.toContain('<Dial>108</Dial>');
+  });
+});
+
+// ─── S1: SFN input contains secureCallerNumber ───────────────────────────────
+
+describe('handleStatus — S1: SFN input contains secureCallerNumber', () => {
+  it('SFN input has secureCallerNumber with real phone number', async () => {
+    process.env.TRIAGE_WORKFLOW_ARN = 'arn:aws:states:ap-south-1:123456789:stateMachine:vaidyavaani-triage';
+    const deps = makeDeps();
+    deps.stateRepo.load = jest.fn(async () => makeState({ triagePath: 'general', conditionId: 'general_fever' }));
+    const h = createHandler(deps);
+    const event = makeEvent('/status', {
+      CallSid: CALL_SID,
+      From: CALLER_NUMBER,
+      CallStatus: 'completed',
+      CallDuration: '45',
+    });
+
+    await h.status(event);
+
+    const sendCall = (deps.sfn.send as jest.Mock).mock.calls[0][0];
+    const sfnInput = JSON.parse(sendCall.input.input ?? sendCall.input);
+    const parsed = sfnInput.input ? JSON.parse(sfnInput.input) : sfnInput;
+    // secureCallerNumber should contain the REAL phone number
+    expect(parsed.secureCallerNumber).toBe(CALLER_NUMBER);
+    // callRecord.callerNumber should be REDACTED
+    expect(parsed.callRecord.callerNumber).toBe('[REDACTED]');
+    delete process.env.TRIAGE_WORKFLOW_ARN;
+  });
+
+  it('emergency SFN input also has secureCallerNumber for dispatch', async () => {
+    process.env.TRIAGE_WORKFLOW_ARN = 'arn:aws:states:ap-south-1:123456789:stateMachine:vaidyavaani-triage';
+    const deps = makeDeps();
+    deps.stateRepo.load = jest.fn(async () => makeState({ triagePath: 'emergency', conditionId: 'cardiac' }));
+    const h = createHandler(deps);
+    const event = makeEvent('/status', {
+      CallSid: CALL_SID,
+      From: CALLER_NUMBER,
+      CallStatus: 'completed',
+      CallDuration: '60',
+    });
+
+    await h.status(event);
+
+    const sendCall = (deps.sfn.send as jest.Mock).mock.calls[0][0];
+    const sfnInput = JSON.parse(sendCall.input.input ?? sendCall.input);
+    const parsed = sfnInput.input ? JSON.parse(sfnInput.input) : sfnInput;
+    expect(parsed.secureCallerNumber).toBe(CALLER_NUMBER);
+    expect(parsed.callRecord.callerNumber).toBe('[REDACTED]');
+    delete process.env.TRIAGE_WORKFLOW_ARN;
+  });
+});
+
+// ─── S3: Extracted drug name skips prompt ─────────────────────────────────────
+
+describe('handleGather — S3: extracted drug name skips prompt', () => {
+  it('drug name in masterExtraction → queries DrugKB directly, no prompt', async () => {
+    const deps = makeDeps();
+    deps.stateRepo.load = jest.fn(async () => makeState({
+      masterExtraction: {
+        is_emergency: false,
+        condition_id: 'unknown',
+        patient_profile: { category: 'adult' as const, exact_age_mentioned: null, pregnancy_flag: 'confirmed' as const },
+        clinical_symptoms_english: [],
+        drugs_mentioned: [{ name: 'paracetamol', query_type: 'safety' }],
+        severity_signal: 'mild',
+        duration: null,
+        location_mentioned: null,
+        danger_signs_present: [],
+        confidence: 0.9,
+        language_register: 'hinglish' as const,
+      },
+    }));
+    (deps.intentRouter.classifyIntent as jest.Mock).mockResolvedValueOnce({
+      intent: 'drug',
+      confidence: 0.85,
+      triggerType: 'default',
+    });
+    // routeFromExtraction returns drug intent
+    (deps.intentRouter.routeFromExtraction as jest.Mock).mockReturnValue({
+      intent: 'drug',
+      confidence: 0.85,
+      triggerType: 'extraction',
+    });
+
+    const drugKB = {
+      queryDrug: jest.fn(async () => ({
+        drug_name: 'paracetamol',
+        query_type: 'safety' as const,
+        dose_adult: '500 mg every 4-6 hours',
+        contraindications: [],
+        pregnancy_category: 'B',
+        source: 'NLEM 2022',
+      })),
+      checkOverdose: jest.fn(() => true),
+    };
+    const h = createHandler({ ...deps, drugKB } as unknown as Partial<typeof deps>);
+    const event = makeEvent('/gather', { CallSid: CALL_SID, SpeechResult: 'paracetamol safe hai kya pregnancy mein', Digits: '' });
+
+    const result = await h.gather(event) as { statusCode: number; body: string };
+
+    expect(result.statusCode).toBe(200);
+    // Should NOT prompt for drug name — should go straight to answer
+    expect(result.body).not.toContain('dawai');
+    expect(result.body).not.toContain('Which medicine');
+    // Should contain drug info
+    expect(result.body).toContain('paracetamol');
+    expect(result.body).toContain('Pregnancy category: B');
+    expect(result.body).toContain('<Hangup/>');
+    expect(drugKB.queryDrug).toHaveBeenCalledWith('paracetamol', 'safety', expect.any(Object));
+  });
+
+  it('no drug in extraction → falls through to prompt as before', async () => {
+    const deps = makeDeps();
+    deps.stateRepo.load = jest.fn(async () => makeState({
+      masterExtraction: {
+        is_emergency: false,
+        condition_id: 'unknown',
+        patient_profile: { category: 'adult' as const, exact_age_mentioned: null, pregnancy_flag: 'unknown' as const },
+        clinical_symptoms_english: [],
+        drugs_mentioned: [],
+        severity_signal: 'mild',
+        duration: null,
+        location_mentioned: null,
+        danger_signs_present: [],
+        confidence: 0.8,
+        language_register: 'pure_hindi' as const,
+      },
+    }));
+    (deps.intentRouter.classifyIntent as jest.Mock).mockResolvedValueOnce({
+      intent: 'drug',
+      confidence: 0.85,
+      triggerType: 'default',
+    });
+    (deps.intentRouter.routeFromExtraction as jest.Mock).mockReturnValue({
+      intent: 'drug',
+      confidence: 0.85,
+      triggerType: 'extraction',
+    });
+
+    const h = createHandler(deps);
+    const event = makeEvent('/gather', { CallSid: CALL_SID, SpeechResult: 'dawai ke baare mein poochna tha', Digits: '' });
+
+    const result = await h.gather(event) as { statusCode: number; body: string };
+
+    // Should prompt for drug name
+    expect(result.body).toContain('<Gather');
+    expect(result.body).toContain('dawai');
+    expect(deps.stateRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ drugQueryState: 'awaiting_drug_name' }),
+    );
+  });
+});
+
+// ─── S4: Max-turn guard ───────────────────────────────────────────────────────
+
+describe('handleGather — S4: max-turn guard prevents infinite triage loop', () => {
+  it('turn 10 → forces wrap-up with triage summary and hangup', async () => {
+    const deps = makeDeps();
+    deps.stateRepo.load = jest.fn(async () => makeState({
+      turn: 9, // will become 10 after increment
+      triagePath: 'general',
+      transcriptHistory: Array(9).fill('mujhe bukhar hai'),
+    }));
+    (deps.triageAgent.assessSymptoms as jest.Mock).mockResolvedValueOnce({
+      conditionId: 'general_fever',
+      icd10Code: 'R50.9',
+      severity: 'non-urgent',
+      recommendedCareLevel: 'PHC',
+      summaryHindi: 'Aapko bukhar hai.',
+      summaryEnglish: 'You have fever.',
+      followUpRequired: true, // Nova Pro still says follow-up — but we override
+    });
+    const h = createHandler(deps);
+    const event = makeEvent('/gather', { CallSid: CALL_SID, SpeechResult: 'wahi bukhar hai', Digits: '' });
+
+    const result = await h.gather(event) as { statusCode: number; body: string };
+
+    expect(result.statusCode).toBe(200);
+    // Should hang up, NOT continue gathering
+    expect(result.body).toContain('<Hangup/>');
+    expect(result.body).not.toContain('<Gather');
+    // Should contain visit advice
+    expect(result.body).toContain('swasthya kendra');
+    // followUpRequired should be forced to false in state
+    expect(deps.stateRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ followUpRequired: false }),
+    );
+  });
+
+  it('English caller at turn 10 → English wrap-up message', async () => {
+    const deps = makeDeps();
+    deps.stateRepo.load = jest.fn(async () => makeState({
+      turn: 9,
+      language: 'english',
+      triagePath: 'general',
+      transcriptHistory: Array(9).fill('I have fever'),
+    }));
+    (deps.triageAgent.assessSymptoms as jest.Mock).mockResolvedValueOnce({
+      conditionId: 'general_fever',
+      icd10Code: 'R50.9',
+      severity: 'non-urgent',
+      recommendedCareLevel: 'PHC',
+      summaryHindi: 'Aapko bukhar hai.',
+      summaryEnglish: 'You have fever.',
+      followUpRequired: true,
+    });
+    const h = createHandler(deps);
+    const event = makeEvent('/gather', { CallSid: CALL_SID, SpeechResult: 'still fever', Digits: '' });
+
+    const result = await h.gather(event) as { statusCode: number; body: string };
+
+    expect(result.body).toContain('<Hangup/>');
+    expect(result.body).toContain('health centre');
+    expect(result.body).toContain('language="en-IN"');
+  });
+
+  it('turn 9 → normal triage continues (no forced wrap-up)', async () => {
+    const deps = makeDeps();
+    deps.stateRepo.load = jest.fn(async () => makeState({
+      turn: 8, // will become 9 after increment — still under limit
+      triagePath: 'general',
+    }));
+    (deps.triageAgent.assessSymptoms as jest.Mock).mockResolvedValueOnce({
+      conditionId: 'general_fever',
+      icd10Code: 'R50.9',
+      severity: 'non-urgent',
+      recommendedCareLevel: 'home',
+      summaryHindi: 'Aapko bukhar hai.',
+      summaryEnglish: 'You have fever.',
+      followUpRequired: true,
+      followUpInterval: '2h',
+    });
+    const h = createHandler(deps);
+    const event = makeEvent('/gather', { CallSid: CALL_SID, SpeechResult: 'bukhar hai', Digits: '' });
+
+    const result = await h.gather(event) as { statusCode: number; body: string };
+
+    // Should continue gathering — NOT force a wrap-up hangup
+    expect(result.body).toContain('<Gather');
+    // twimlGather always includes <Hangup/> as a Twilio no-input safety fallback,
+    // so we assert the wrap-up visit-advice is absent instead of the XML tag.
+    expect(result.body).not.toContain('swasthya kendra');
+  });
+
+  it('turn 10 with triage failure → graceful wrap-up with visit advice', async () => {
+    const deps = makeDeps();
+    deps.stateRepo.load = jest.fn(async () => makeState({
+      turn: 9,
+      triagePath: 'general',
+    }));
+    (deps.triageAgent.assessSymptoms as jest.Mock).mockRejectedValueOnce(new Error('Bedrock timeout'));
+    const h = createHandler(deps);
+    const event = makeEvent('/gather', { CallSid: CALL_SID, SpeechResult: 'bukhar hai', Digits: '' });
+
+    const result = await h.gather(event) as { statusCode: number; body: string };
+
+    expect(result.statusCode).toBe(200);
+    expect(result.body).toContain('<Hangup/>');
+    expect(result.body).toContain('swasthya kendra');
+  });
+});
+
+// ─── S5: English fallback on error ────────────────────────────────────────────
+
+describe('handleGather — S5: bilingual fallback on error', () => {
+  it('English caller triage failure → English fallback message', async () => {
+    const deps = makeDeps();
+    deps.stateRepo.load = jest.fn(async () => makeState({ language: 'english' }));
+    (deps.triageAgent.assessSymptoms as jest.Mock).mockRejectedValueOnce(new Error('Bedrock timeout'));
+    const h = createHandler(deps);
+    const event = makeEvent('/gather', { CallSid: CALL_SID, SpeechResult: 'I have a headache', Digits: '' });
+
+    const result = await h.gather(event) as { statusCode: number; body: string };
+
+    expect(result.statusCode).toBe(200);
+    expect(result.body).toContain('system is currently busy');
+    expect(result.body).not.toContain('Maafi chahte hain');
+  });
+
+  it('Hindi caller triage failure → Hindi fallback message', async () => {
+    const deps = makeDeps();
+    deps.stateRepo.load = jest.fn(async () => makeState({ language: 'hindi' }));
+    (deps.triageAgent.assessSymptoms as jest.Mock).mockRejectedValueOnce(new Error('Bedrock timeout'));
+    const h = createHandler(deps);
+    const event = makeEvent('/gather', { CallSid: CALL_SID, SpeechResult: 'mujhe sar dard hai', Digits: '' });
+
+    const result = await h.gather(event) as { statusCode: number; body: string };
+
+    expect(result.body).toContain('Maafi chahte hain');
+  });
+
+  it('English caller final fallback re-prompt → English text', async () => {
+    const deps = makeDeps();
+    deps.stateRepo.load = jest.fn(async () => makeState({ language: 'english' }));
+    // Intent returns something that doesn't match any path → falls to final re-prompt
+    (deps.intentRouter.classifyIntent as jest.Mock).mockResolvedValueOnce({
+      intent: 'unknown' as any,
+      confidence: 0.3,
+      triggerType: 'default',
+    });
+    (deps.intentRouter.extractMasterTags as jest.Mock).mockResolvedValueOnce(null);
+    const h = createHandler(deps);
+    const event = makeEvent('/gather', { CallSid: CALL_SID, SpeechResult: 'hello', Digits: '' });
+
+    const result = await h.gather(event) as { statusCode: number; body: string };
+
+    expect(result.statusCode).toBe(200);
+    expect(result.body).toContain('describe your symptoms again');
+    expect(result.body).not.toContain('Kripya apni takleef');
   });
 });

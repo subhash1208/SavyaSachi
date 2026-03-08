@@ -55,7 +55,8 @@ const CONDITION_THRESHOLDS: Record<string, number> = {
   'A90':   5,   // Dengue — highly clustered, low baseline
   'A09':   8,   // Diarrhea — common but clusters matter
   'A01.0': 3,   // Typhoid — very low baseline, any cluster is suspicious
-  'A15':   5,   // TB — clusters indicate transmission
+  'A15':   5,   // TB — clusters indicate transmission (category level)
+  'A15.0': 5,   // TB — respiratory (subcategory from triage agent)
   'B54':   5,   // Malaria — seasonal clusters
   'J06.9': 15,  // Upper respiratory — high baseline, needs bigger spike
   'R50.9': 12,  // Fever unspecified — common, needs bigger spike
@@ -64,7 +65,14 @@ const CONDITION_THRESHOLDS: Record<string, number> = {
 
 const DEFAULT_THRESHOLD = 10;
 
-/** Counter for generating unique alert IDs within a single run */
+/**
+ * Counter for generating unique alert IDs within a single run.
+ * IMPORTANT: This is module-level state. In Lambda warm containers, the module
+ * is loaded once and reused across invocations. The counter is reset at the
+ * start of each `runSurveillancePipeline()` call to prevent cross-invocation
+ * leakage. Direct callers of `detectAnomaly()` should call `_resetAlertCounter()`
+ * manually if they need deterministic IDs.
+ */
 let _alertCounter = 0;
 
 export class DiseaseSurveillanceService implements IDiseaseSurveillance {
@@ -116,19 +124,23 @@ export class DiseaseSurveillanceService implements IDiseaseSurveillance {
 
       for (const record of records) {
         const key = `${record.icd10Code}|${record.district}|${record.state}`;
+        // Normalize village name to lowercase for consistent grouping.
+        // Village names come from Tier 1 voice input — callers may say
+        // "Khedi", "khedi", or "KHEDI" for the same village.
+        const normalizedVillage = record.village?.toLowerCase().trim();
         const existing = groups.get(key);
         if (existing) {
           existing.count++;
-          if (record.village) {
+          if (normalizedVillage) {
             existing.villages.set(
-              record.village,
-              (existing.villages.get(record.village) || 0) + 1,
+              normalizedVillage,
+              (existing.villages.get(normalizedVillage) || 0) + 1,
             );
           }
         } else {
           const villages = new Map<string, number>();
-          if (record.village) {
-            villages.set(record.village, 1);
+          if (normalizedVillage) {
+            villages.set(normalizedVillage, 1);
           }
           groups.set(key, {
             icd10Code: record.icd10Code,
@@ -311,6 +323,10 @@ export class DiseaseSurveillanceService implements IDiseaseSurveillance {
     defaultThreshold: number,
     recentlyAlerted: Set<string> = new Set(),
   ): Promise<OutbreakAlert[]> {
+    // Reset alert counter at the start of each pipeline run to prevent
+    // cross-invocation leakage in warm Lambda containers (module-level state).
+    _alertCounter = 0;
+
     // Step 1: Aggregate
     const aggregated = await this.aggregateByConditionAndLocation(timeWindow);
 
@@ -322,10 +338,16 @@ export class DiseaseSurveillanceService implements IDiseaseSurveillance {
     // Step 2: Detect anomalies
     const allAlerts = this.detectAnomaly(aggregated, defaultThreshold);
 
-    // Step 3: Deduplicate — skip alerts for condition+district already notified
+    // Step 3: Deduplicate — skip alerts for condition+district+severity already notified.
+    // The dedup key includes severity so that escalations (watch → alert → critical)
+    // are NOT suppressed. Real-world scenario: dengue starts as "watch" (6 calls),
+    // then escalates to "critical" (25 calls) — the DHO MUST be re-alerted.
+    // The Lambda handler should store keys as "icd10Code|district|severity" in DynamoDB.
     const newAlerts = allAlerts.filter(alert => {
-      const dedupeKey = `${alert.icd10Code}|${alert.location.district}`;
-      return !recentlyAlerted.has(dedupeKey);
+      const dedupeKey = `${alert.icd10Code}|${alert.location.district}|${alert.severity}`;
+      // Also check legacy format (without severity) for backward compatibility
+      const legacyKey = `${alert.icd10Code}|${alert.location.district}`;
+      return !recentlyAlerted.has(dedupeKey) && !recentlyAlerted.has(legacyKey);
     });
 
     if (newAlerts.length < allAlerts.length) {
@@ -337,8 +359,38 @@ export class DiseaseSurveillanceService implements IDiseaseSurveillance {
     }
 
     // Step 4: Alert DHO for each new alert
+    // Track notification failures so the Lambda handler can log/retry
+    let failedNotifications = 0;
     for (const alert of newAlerts) {
-      await this.alertDHO(alert);
+      try {
+        await this._notifier.publish(alert);
+        Logger.info('DHO alert sent', {
+          alertId: alert.alertId,
+          icd10Code: alert.icd10Code,
+          district: alert.location.district,
+          village: alert.location.village,
+          severity: alert.severity,
+          callCount: alert.callCount,
+        });
+      } catch (err) {
+        failedNotifications++;
+        Logger.error('DHO alert failed in pipeline', {
+          alertId: alert.alertId,
+          icd10Code: alert.icd10Code,
+          district: alert.location.district,
+          severity: alert.severity,
+          error: (err as Error).message,
+        });
+        // Continue — don't let one failed notification block others
+      }
+    }
+
+    if (failedNotifications > 0) {
+      Logger.error('Surveillance pipeline: some DHO notifications failed', {
+        total: newAlerts.length,
+        failed: failedNotifications,
+        succeeded: newAlerts.length - failedNotifications,
+      });
     }
 
     return newAlerts;
@@ -379,6 +431,7 @@ export class DiseaseSurveillanceService implements IDiseaseSurveillance {
       'A09': 'Diarrhea / Gastroenteritis',
       'A01.0': 'Typhoid Fever',
       'A15': 'Tuberculosis',
+      'A15.0': 'Tuberculosis (Respiratory)',
       'B54': 'Malaria',
       'J06.9': 'Acute Upper Respiratory Infection',
       'J45.9': 'Asthma',
@@ -388,6 +441,7 @@ export class DiseaseSurveillanceService implements IDiseaseSurveillance {
       'R50.9': 'Fever (unspecified)',
       'E86.0': 'Dehydration',
       'E11': 'Type 2 Diabetes',
+      'E11.9': 'Type 2 Diabetes (Unspecified)',
       'E10': 'Type 1 Diabetes',
       'I10': 'Hypertension',
       'R69': 'Unknown Condition',
