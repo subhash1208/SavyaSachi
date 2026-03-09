@@ -16,44 +16,44 @@ const NOVA_PRO = 'us.amazon.nova-pro-v1:0';
 // ─── Severity → Care level mapping ───────────────────────────────────────────
 
 const SEVERITY_CARE: Record<SeverityLevel, TriageAssessment['recommendedCareLevel']> = {
-  critical:     'district_hospital',
-  urgent:       'CHC',
+  critical: 'district_hospital',
+  urgent: 'CHC',
   'non-urgent': 'PHC',
 };
 
 // ICD-10 codes for general triage conditions
 const CONDITION_ICD10: Record<string, string> = {
-  general_fever:    'R50.9',
-  maternal_care:    'Z34.9',
-  chronic_disease:  'Z87.39',
-  drug_query:       'Z79.899',
-  unknown:          'R69',
-  diarrhea:         'A09',
-  dehydration:      'E86.0',
-  headache:         'R51',
-  dengue:           'A90',
-  diabetes:         'E11.9',
-  hypertension:     'I10',
-  tb:               'A15.0',
+  general_fever: 'R50.9',
+  maternal_care: 'Z34.9',
+  chronic_disease: 'Z87.39',
+  drug_query: 'Z79.899',
+  unknown: 'R69',
+  diarrhea: 'A09',
+  dehydration: 'E86.0',
+  headache: 'R51',
+  dengue: 'A90',
+  diabetes: 'E11.9',
+  hypertension: 'I10',
+  tb: 'A15.0',
   // Emergency conditions — normally ICD-10 comes from the emergency script,
   // but if Nova Lite routes a borderline case to general triage, tagICD10()
   // needs a fallback so the FHIR record isn't tagged R69 (unknown).
-  child_fever:              'A09',
-  cardiac:                  'I21.9',
-  snakebite:                'T63.0',
-  breathing_difficulty:     'J45.9',
-  stroke:                   'I64',
-  severe_bleeding:          'R58',
-  choking:                  'T17.9',
-  burns:                    'T30.0',
-  poisoning:                'T65.9',
-  anaphylaxis:              'T78.2',
-  seizure:                  'R56.9',
-  pregnancy_emergency:      'O14.9',
-  drowning:                 'T75.1',
-  unconsciousness:          'R40.2',
-  infant_not_breathing:     'P28.4',
-  heatstroke:               'T67.0',
+  child_fever: 'A09',
+  cardiac: 'I21.9',
+  snakebite: 'T63.0',
+  breathing_difficulty: 'J45.9',
+  stroke: 'I64',
+  severe_bleeding: 'R58',
+  choking: 'T17.9',
+  burns: 'T30.0',
+  poisoning: 'T65.9',
+  anaphylaxis: 'T78.2',
+  seizure: 'R56.9',
+  pregnancy_emergency: 'O14.9',
+  drowning: 'T75.1',
+  unconsciousness: 'R40.2',
+  infant_not_breathing: 'P28.4',
+  heatstroke: 'T67.0',
 };
 
 // ─── Constitutional AI system prompt (base) ───────────────────────────────────
@@ -167,7 +167,11 @@ Assess and respond with JSON only.`.trim();
     modelId: NOVA_PRO,
     contentType: 'application/json',
     accept: 'application/json',
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      ...body,
+      guardrailIdentifier: process.env.BEDROCK_GUARDRAIL_ID,
+      guardrailVersion: process.env.BEDROCK_GUARDRAIL_VERSION,
+    }),
   });
 
   const response = await bedrock.send(command);
@@ -239,8 +243,8 @@ export class TriageAgentService implements ITriageAgent {
       // - urgent: CHC (needs medical attention today)
       // - non-urgent: home (rest at home is valid for mild cases)
       const MINIMUM_CARE: Record<SeverityLevel, TriageAssessment['recommendedCareLevel']> = {
-        critical:     'district_hospital',
-        urgent:       'CHC',
+        critical: 'district_hospital',
+        urgent: 'CHC',
         'non-urgent': 'home',
       };
       let finalCareLevel = novaResult.recommendedCareLevel;
@@ -268,15 +272,15 @@ export class TriageAgentService implements ITriageAgent {
         : novaResult.followUpRequired;
 
       const assessment: TriageAssessment = {
-        conditionId:          input.conditionId,
-        icd10Code:            novaResult.icd10Code || this.tagICD10(input.conditionId),
-        severity:             novaResult.severity,
+        conditionId: input.conditionId,
+        icd10Code: novaResult.icd10Code || this.tagICD10(input.conditionId),
+        severity: novaResult.severity,
         recommendedCareLevel: finalCareLevel,
-        summaryHindi:         novaResult.summaryHindi,
-        summaryEnglish:       novaResult.summaryEnglish,
+        summaryHindi: novaResult.summaryHindi,
+        summaryEnglish: novaResult.summaryEnglish,
         treatmentInstructions: this._validateTreatmentInstructions(novaResult.treatmentInstructions),
         followUpRequired,
-        followUpInterval:     novaResult.followUpInterval ?? undefined,
+        followUpInterval: novaResult.followUpInterval ?? undefined,
       };
 
       Logger.info('Triage assessment complete', {
@@ -309,7 +313,7 @@ export class TriageAgentService implements ITriageAgent {
     return {
       instructions: [...clinicalInstructions, ...logisticsInstructions],
       disclaimer: {
-        hindi:   'Yeh AI ki salah hai. Kisi bhi serious situation mein doctor se zaroor milein.',
+        hindi: 'Yeh AI ki salah hai. Kisi bhi serious situation mein doctor se zaroor milein.',
         english: 'This is AI guidance. Please consult a doctor for any serious condition.',
       },
     };
@@ -354,14 +358,14 @@ export class TriageAgentService implements ITriageAgent {
     const hasDangerSigns = input.dangerSignsPresent.length > 0;
     const severity: SeverityLevel = hasDangerSigns ? 'critical' : 'urgent';
     return {
-      conditionId:          input.conditionId,
-      icd10Code:            this.tagICD10(input.conditionId),
+      conditionId: input.conditionId,
+      icd10Code: this.tagICD10(input.conditionId),
       severity,
       recommendedCareLevel: this.determineFacilityLevel(severity),
-      summaryHindi:         'Kripya najdeeki Swasthya Kendra mein jaayein.',
-      summaryEnglish:       'Please visit the nearest health facility.',
-      followUpRequired:     true,
-      followUpInterval:     '24h',
+      summaryHindi: 'Kripya najdeeki Swasthya Kendra mein jaayein.',
+      summaryEnglish: 'Please visit the nearest health facility.',
+      followUpRequired: true,
+      followUpInterval: '24h',
     };
   }
 

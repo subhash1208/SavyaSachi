@@ -157,6 +157,17 @@ function makeDeps(overrides: Partial<CallHandlerDeps> = {}): CallHandlerDeps {
     })),
   };
 
+  const generalTriageKB = {
+    retrieveChunks: jest.fn(async () => ({
+      chunks: ['Test protocol chunk'],
+      sources: ['s3://test-bucket/test.pdf'],
+      relevanceScores: [0.9],
+    })),
+    queryTriage: jest.fn(),
+    generateFollowUpQuestion: jest.fn(),
+    classifySeverity: jest.fn(),
+  };
+
   const sfn = {
     send: jest.fn(async () => ({ executionArn: 'arn:test' })),
   };
@@ -166,6 +177,7 @@ function makeDeps(overrides: Partial<CallHandlerDeps> = {}): CallHandlerDeps {
     intentRouter,
     emergencyKB,
     triageAgent,
+    generalTriageKB,
     locationDetector,
     callLogger,
     orchestrator,

@@ -1,6 +1,6 @@
 import { Logger } from '../utils/logger';
 
-interface ErrorResponse {
+export interface ErrorResponse {
   statusCode: number;
   headers?: Record<string, string>;
   body: string;

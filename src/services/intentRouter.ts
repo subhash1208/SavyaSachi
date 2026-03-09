@@ -11,46 +11,46 @@ import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedroc
 
 const EMERGENCY_KEYWORDS: Record<string, { conditionId: string; language: Language }[]> = {
   // Cardiac — Hindi
-  'seene mein dard':     [{ conditionId: 'cardiac', language: 'hindi' }],
-  'dil ka dora':         [{ conditionId: 'cardiac', language: 'hindi' }],
+  'seene mein dard': [{ conditionId: 'cardiac', language: 'hindi' }],
+  'dil ka dora': [{ conditionId: 'cardiac', language: 'hindi' }],
   // Cardiac — English
-  'heart attack':        [{ conditionId: 'cardiac', language: 'english' }],
-  'chest pain':          [{ conditionId: 'cardiac', language: 'english' }],
+  'heart attack': [{ conditionId: 'cardiac', language: 'english' }],
+  'chest pain': [{ conditionId: 'cardiac', language: 'english' }],
   // Cardiac — Hinglish
-  'heart attack ho raha':[{ conditionId: 'cardiac', language: 'hindi' }],
-  'chest mein pain':     [{ conditionId: 'cardiac', language: 'hindi' }],
-  'dil attack':          [{ conditionId: 'cardiac', language: 'hindi' }],
+  'heart attack ho raha': [{ conditionId: 'cardiac', language: 'hindi' }],
+  'chest mein pain': [{ conditionId: 'cardiac', language: 'hindi' }],
+  'dil attack': [{ conditionId: 'cardiac', language: 'hindi' }],
 
   // Snakebite — Hindi
-  'saanp ne kaata':      [{ conditionId: 'snakebite', language: 'hindi' }],
-  'naag ne kaata':       [{ conditionId: 'snakebite', language: 'hindi' }],
+  'saanp ne kaata': [{ conditionId: 'snakebite', language: 'hindi' }],
+  'naag ne kaata': [{ conditionId: 'snakebite', language: 'hindi' }],
   // Snakebite — English
-  'snake bite':          [{ conditionId: 'snakebite', language: 'english' }],
+  'snake bite': [{ conditionId: 'snakebite', language: 'english' }],
   // Snakebite — Hinglish
-  'saanp bite':          [{ conditionId: 'snakebite', language: 'hindi' }],
-  'saanp ne bite kiya':  [{ conditionId: 'snakebite', language: 'hindi' }],
-  'snake ne kaata':      [{ conditionId: 'snakebite', language: 'hindi' }],
+  'saanp bite': [{ conditionId: 'snakebite', language: 'hindi' }],
+  'saanp ne bite kiya': [{ conditionId: 'snakebite', language: 'hindi' }],
+  'snake ne kaata': [{ conditionId: 'snakebite', language: 'hindi' }],
 
   // Breathing difficulty — Hindi
-  'saans nahi aa rahi':  [{ conditionId: 'breathing_difficulty', language: 'hindi' }],
-  'dam ghut raha':       [{ conditionId: 'breathing_difficulty', language: 'hindi' }],
+  'saans nahi aa rahi': [{ conditionId: 'breathing_difficulty', language: 'hindi' }],
+  'dam ghut raha': [{ conditionId: 'breathing_difficulty', language: 'hindi' }],
   // Breathing difficulty — English
-  "can't breathe":       [{ conditionId: 'breathing_difficulty', language: 'english' }],
-  'cannot breathe':      [{ conditionId: 'breathing_difficulty', language: 'english' }],
-  'breathing problem':   [{ conditionId: 'breathing_difficulty', language: 'english' }],
+  "can't breathe": [{ conditionId: 'breathing_difficulty', language: 'english' }],
+  'cannot breathe': [{ conditionId: 'breathing_difficulty', language: 'english' }],
+  'breathing problem': [{ conditionId: 'breathing_difficulty', language: 'english' }],
   // Breathing difficulty — Hinglish
   'saans nahi le pa raha': [{ conditionId: 'breathing_difficulty', language: 'hindi' }],
   'breathing nahi ho rahi': [{ conditionId: 'breathing_difficulty', language: 'hindi' }],
 
   // Child fever — Hindi
   'bachche ko tez bukhar': [{ conditionId: 'child_fever', language: 'hindi' }],
-  'bachcha behosh':        [{ conditionId: 'child_fever', language: 'hindi' }],
+  'bachcha behosh': [{ conditionId: 'child_fever', language: 'hindi' }],
   // Child fever — English
-  'child fever':           [{ conditionId: 'child_fever', language: 'english' }],
-  'baby fits':             [{ conditionId: 'child_fever', language: 'english' }],
+  'child fever': [{ conditionId: 'child_fever', language: 'english' }],
+  'baby fits': [{ conditionId: 'child_fever', language: 'english' }],
   // Child fever — Hinglish
-  'bachche ko fever':      [{ conditionId: 'child_fever', language: 'hindi' }],
-  'baby ko bukhar':        [{ conditionId: 'child_fever', language: 'hindi' }],
+  'bachche ko fever': [{ conditionId: 'child_fever', language: 'hindi' }],
+  'baby ko bukhar': [{ conditionId: 'child_fever', language: 'hindi' }],
 };
 
 // SOS activation words — single word emergency trigger
@@ -271,6 +271,8 @@ Return ONLY valid JSON, no explanation.`;
             temperature: 0.1,
             topP: 0.9,
           },
+          guardrailIdentifier: process.env.BEDROCK_GUARDRAIL_ID,
+          guardrailVersion: process.env.BEDROCK_GUARDRAIL_VERSION,
         }),
       }));
 

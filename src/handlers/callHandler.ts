@@ -23,6 +23,7 @@ import { ConversationStateRepository } from '../repositories/conversationStateRe
 import { IntentRouterService } from '../services/intentRouter';
 import { EmergencyKBService } from '../services/emergencyKB';
 import { TriageAgentService } from '../services/triageAgent';
+import { GeneralTriageKBService } from '../services/generalTriageKB';
 import { LocationDetectorService } from '../services/locationDetector';
 import { CallLoggerService } from '../services/callLogger';
 import { ActionOrchestratorService } from '../services/actionOrchestrator';
@@ -138,6 +139,7 @@ export interface CallHandlerDeps {
   intentRouter: IntentRouterService;
   emergencyKB: EmergencyKBService;
   triageAgent: TriageAgentService;
+  generalTriageKB: GeneralTriageKBService;
   locationDetector: LocationDetectorService;
   callLogger: CallLoggerService;
   orchestrator: ActionOrchestratorService;
@@ -188,6 +190,7 @@ function createDefaultDeps(): CallHandlerDeps {
     intentRouter: new IntentRouterService(),
     emergencyKB: new EmergencyKBService(),
     triageAgent: new TriageAgentService(),
+    generalTriageKB: new GeneralTriageKBService(),
     locationDetector: new LocationDetectorService(),
     callLogger: new CallLoggerService(),
     orchestrator: new ActionOrchestratorService(sms, referral, followUp, asha),
@@ -627,9 +630,10 @@ async function handleGather(
           rawUtterance: sanitized,
           language_register: state.masterExtraction?.language_register,
         };
+        const kbResults = await deps.generalTriageKB.retrieveChunks(symptoms.join(', '));
         const assessment = await deps.triageAgent.assessSymptoms(
           symptomInput,
-          { chunks: [], sources: [], relevanceScores: [] },
+          kbResults,
           state.transcriptHistory,
         );
         const summary = state.language === 'english' ? assessment.summaryEnglish : assessment.summaryHindi;
@@ -671,9 +675,10 @@ async function handleGather(
     };
 
     try {
+      const kbResults = await deps.generalTriageKB.retrieveChunks(symptoms.join(', '));
       const assessment = await deps.triageAgent.assessSymptoms(
         symptomInput,
-        { chunks: [], sources: [], relevanceScores: [] },
+        kbResults,
         state.transcriptHistory,
       );
 
@@ -763,7 +768,7 @@ async function handleGather(
             deps.drugKB.queryDrug(drugName, queryType, profile),
             deps.triageAgent.assessSymptoms(
               symptomInput,
-              { chunks: [], sources: [], relevanceScores: [] },
+              await deps.generalTriageKB.retrieveChunks(state.masterExtraction!.clinical_symptoms_english.join(', ')),
               state.transcriptHistory,
             ).catch(() => null), // Triage failure is non-fatal for drug queries
           ]);
