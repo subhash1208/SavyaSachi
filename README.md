@@ -29,6 +29,15 @@
 
 ---
 
+## 🔗 Important Links for Judges
+
+- **Working MVP (Functional and Live):** [Link details to be added post-deployment]
+- **Demo Video:** [Insert Demo Video Link Here]
+- **Project PPT & Architecture:** [Insert PPT Link Here]
+- **GitHub Repository (Public):** https://github.com/subhash1208/SavyaSachi
+
+---
+
 ## 📁 Repository Structure
 
 ```text
